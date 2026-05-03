@@ -2,14 +2,15 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
+type Vec2 = { x: number; y: number };
+
 type SliderProps = {
   label: string;
   value: number;
   setValue: (value: number) => void;
   max: number;
+  suffix?: string;
 };
-
-type Vec2 = { x: number; y: number };
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
@@ -61,11 +62,14 @@ export default function SailingSimulator() {
   const [trueWind, setTrueWind] = useState(135);
   const [targetHeading, setTargetHeading] = useState(30);
   const [sail, setSail] = useState(16);
+  const [autoPilot, setAutoPilot] = useState(false);
+  const [showLearning, setShowLearning] = useState(true);
 
   const [currentHeading, setCurrentHeading] = useState(30);
   const [boatSpeed, setBoatSpeed] = useState(0);
   const [movementAngle, setMovementAngle] = useState(30);
   const [driftAngle, setDriftAngle] = useState(0);
+  const [wavePhase, setWavePhase] = useState(0);
 
   const headingVelocityRef = useRef(0);
   const velocityRef = useRef<Vec2>({ x: 0, y: 0 });
@@ -73,6 +77,8 @@ export default function SailingSimulator() {
   const liveDataRef = useRef({
     driveForce: 0,
     sideForce: 0,
+    idealTrim: 16,
+    recommendedHeading: 30,
   });
 
   useEffect(() => {
@@ -83,12 +89,21 @@ export default function SailingSimulator() {
       const dt = Math.min((now - last) / 1000, 0.035);
       last = now;
 
+      setWavePhase((p) => p + dt);
+
+      if (autoPilot) {
+        const recommended = liveDataRef.current.recommendedHeading;
+        setTargetHeading((old) => normalizeAngle(old + shortestAngleDiff(recommended, old) * 0.035));
+        setSail((old) => Math.round(old + (liveDataRef.current.idealTrim - old) * 0.045));
+      }
+
       setCurrentHeading((current) => {
         const diff = shortestAngleDiff(targetHeading, current);
-        const acceleration = diff * 0.9;
+        const spring = diff * 0.85;
+        const damping = 0.93;
 
         headingVelocityRef.current =
-          (headingVelocityRef.current + acceleration * dt) * 0.94;
+          (headingVelocityRef.current + spring * dt) * damping;
 
         if (Math.abs(diff) < 0.05 && Math.abs(headingVelocityRef.current) < 0.02) {
           headingVelocityRef.current = 0;
@@ -139,7 +154,7 @@ export default function SailingSimulator() {
 
     frame = requestAnimationFrame(update);
     return () => cancelAnimationFrame(frame);
-  }, [targetHeading, currentHeading]);
+  }, [targetHeading, currentHeading, autoPilot]);
 
   const data = useMemo(() => {
     const trueWindSpeed = 16;
@@ -186,7 +201,14 @@ export default function SailingSimulator() {
           100
         );
 
-    liveDataRef.current = { driveForce, sideForce };
+    const recommendedHeading = normalizeAngle(trueWind + 55);
+
+    liveDataRef.current = {
+      driveForce,
+      sideForce,
+      idealTrim,
+      recommendedHeading,
+    };
 
     const heel = noGo ? 0 : clamp((sideForce / 100) * 22, 0, 22);
     const wakePower = clamp(boatSpeed / 8, 0.12, 1);
@@ -208,6 +230,7 @@ export default function SailingSimulator() {
       wavePower,
       sailAlpha,
       noGo,
+      recommendedHeading,
       point: pointOfSail(apparentRelative),
     };
   }, [trueWind, currentHeading, sail, boatSpeed]);
@@ -219,47 +242,40 @@ export default function SailingSimulator() {
         ? "M250 210 C345 230 350 322 262 358 Z"
         : "M250 210 C315 238 328 305 262 346 Z";
 
+  const waveOffset = Math.sin(wavePhase * 2.1) * 4;
+  const rollOffset = Math.sin(wavePhase * 1.35) * 1.4;
+
   return (
     <main className="min-h-screen bg-[#020617] px-4 py-8 text-white md:px-6 md:py-10">
       <style>{`
-        @keyframes seaCurrent {
-          0% { transform: translateX(-55px) translateY(0px); opacity: .18; }
-          50% { transform: translateX(15px) translateY(10px); opacity: .52; }
-          100% { transform: translateX(70px) translateY(-4px); opacity: .22; }
+        @keyframes shimmerSea {
+          0% { opacity: .22; transform: translateX(-60px); }
+          50% { opacity: .55; transform: translateX(10px); }
+          100% { opacity: .22; transform: translateX(70px); }
         }
-        @keyframes swellLong {
-          0% { transform: translateX(-45px) translateY(-6px); opacity: .16; }
-          50% { transform: translateX(10px) translateY(8px); opacity: .42; }
-          100% { transform: translateX(55px) translateY(-3px); opacity: .18; }
+
+        @keyframes windParticle {
+          0% { opacity: .1; transform: translateX(-32px); }
+          50% { opacity: .9; transform: translateX(8px); }
+          100% { opacity: .16; transform: translateX(45px); }
         }
-        @keyframes windFlow {
-          0% { transform: translateX(-35px); opacity: .12; }
-          50% { transform: translateX(5px); opacity: .85; }
-          100% { transform: translateX(45px); opacity: .18; }
+
+        @keyframes wakePulse {
+          0% { opacity: .12; transform: scaleY(.82) scaleX(.9); }
+          50% { opacity: .52; transform: scaleY(1.2) scaleX(1.08); }
+          100% { opacity: .12; transform: scaleY(.82) scaleX(.9); }
         }
-        @keyframes hullInertia {
-          0% { transform: translateY(-3px) rotate(-1.2deg); }
-          25% { transform: translateY(2px) rotate(.8deg); }
-          50% { transform: translateY(5px) rotate(1.5deg); }
-          75% { transform: translateY(1px) rotate(-.5deg); }
-          100% { transform: translateY(-3px) rotate(-1.2deg); }
-        }
-        @keyframes wakeBreath {
-          0% { opacity: .10; transform: scaleY(.85) scaleX(.9); }
-          50% { opacity: .48; transform: scaleY(1.18) scaleX(1.08); }
-          100% { opacity: .10; transform: scaleY(.85) scaleX(.9); }
-        }
-        @keyframes sailPressurePulse {
+
+        @keyframes sailPulse {
           0% { opacity: .72; }
           50% { opacity: 1; }
           100% { opacity: .72; }
         }
-        .sea-current { animation: seaCurrent 6s ease-in-out infinite alternate; }
-        .swell-line { animation: swellLong 8s ease-in-out infinite alternate; }
-        .wind-particle { animation: windFlow 3s ease-in-out infinite alternate; }
-        .hull-inertia { animation: hullInertia 3.8s ease-in-out infinite; transform-origin: 250px 320px; }
-        .wake-breath { animation: wakeBreath 2.2s ease-in-out infinite; transform-origin: 250px 395px; }
-        .sail-pressure { animation: sailPressurePulse 2s ease-in-out infinite; }
+
+        .wave-line { animation: shimmerSea 7s ease-in-out infinite alternate; }
+        .wind-dot { animation: windParticle 3s ease-in-out infinite alternate; }
+        .wake-pulse { animation: wakePulse 2.2s ease-in-out infinite; transform-origin: 250px 395px; }
+        .sail-pulse { animation: sailPulse 2s ease-in-out infinite; }
       `}</style>
 
       <section className="mx-auto max-w-7xl">
@@ -272,8 +288,8 @@ export default function SailingSimulator() {
         </h1>
 
         <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-300 md:text-base">
-          PHYSICS engine: kuvvet → ivme → hız, su direnci, momentum, yan kayma ve
-          apparent wind birlikte çalışır.
+          Gerçek dalga hissi, inertia smoothing, autopilot training mode ve canlı
+          learning overlay ile geliştirilmiş YYE eğitim simülatörü.
         </p>
 
         <div className="mt-8 grid gap-5 xl:grid-cols-[320px_minmax(520px,1fr)_320px]">
@@ -284,9 +300,29 @@ export default function SailingSimulator() {
             <Slider label="Hedef Tekne Yönü" value={targetHeading} setValue={setTargetHeading} max={360} />
             <Slider label="Yelken" value={sail} setValue={setSail} max={90} />
 
+            <button
+              type="button"
+              onClick={() => setAutoPilot((v) => !v)}
+              className={`mt-4 w-full rounded-2xl border px-4 py-3 text-sm font-bold transition ${
+                autoPilot
+                  ? "border-cyan-300 bg-cyan-300 text-slate-950"
+                  : "border-white/10 bg-white/10 text-white"
+              }`}
+            >
+              {autoPilot ? "Autopilot Training: ON" : "Autopilot Training: OFF"}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowLearning((v) => !v)}
+              className="mt-3 w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-bold text-white"
+            >
+              Learning Overlay {showLearning ? "Açık" : "Kapalı"}
+            </button>
+
             <div className="mt-6 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-4 text-sm leading-6 text-cyan-50">
-              Tekne baktığı yere direkt gitmez; momentum ve su direnciyle kayarak
-              hareket eder.
+              Autopilot açıkken sistem rüzgâra göre güvenli seyir açısı ve yelken
+              trimini otomatik düzeltir.
             </div>
           </div>
 
@@ -295,16 +331,10 @@ export default function SailingSimulator() {
               <svg viewBox="0 0 500 500" className="h-auto w-full max-w-[520px]">
                 <defs>
                   <radialGradient id="seaGlow" cx="50%" cy="50%" r="55%">
-                    <stop offset="0%" stopColor="#155e75" stopOpacity="0.58" />
-                    <stop offset="68%" stopColor="#020617" stopOpacity="0.96" />
+                    <stop offset="0%" stopColor="#155e75" stopOpacity="0.64" />
+                    <stop offset="65%" stopColor="#020617" stopOpacity="0.96" />
                     <stop offset="100%" stopColor="#020617" stopOpacity="1" />
                   </radialGradient>
-
-                  <linearGradient id="hull" x1="0" x2="0" y1="0" y2="1">
-                    <stop offset="0%" stopColor="#ffffff" />
-                    <stop offset="50%" stopColor="#e2e8f0" />
-                    <stop offset="100%" stopColor="#94a3b8" />
-                  </linearGradient>
 
                   <filter id="glow">
                     <feGaussianBlur stdDeviation="4" result="coloredBlur" />
@@ -317,16 +347,22 @@ export default function SailingSimulator() {
                   <filter id="softBlur">
                     <feGaussianBlur stdDeviation="2" />
                   </filter>
+
+                  <linearGradient id="hull" x1="0" x2="0" y1="0" y2="1">
+                    <stop offset="0%" stopColor="#ffffff" />
+                    <stop offset="50%" stopColor="#e2e8f0" />
+                    <stop offset="100%" stopColor="#94a3b8" />
+                  </linearGradient>
                 </defs>
 
                 <rect width="500" height="500" fill="url(#seaGlow)" />
 
-                <g opacity={0.2 + data.wavePower * 0.45}>
-                  <path className="swell-line" d="M-70 95 C75 35 145 150 280 95 C390 50 480 105 570 82" fill="none" stroke="#bae6fd" strokeWidth="1.5" />
-                  <path className="sea-current" d="M-70 155 C70 100 160 210 285 158 C390 115 480 165 570 142" fill="none" stroke="#67e8f9" strokeWidth="2" />
-                  <path className="swell-line" d="M-70 225 C90 165 170 285 295 228 C400 185 490 235 570 210" fill="none" stroke="#bae6fd" strokeWidth="1.5" />
-                  <path className="sea-current" d="M-70 305 C90 250 170 365 300 310 C400 270 490 315 570 295" fill="none" stroke="#67e8f9" strokeWidth="2" />
-                  <path className="swell-line" d="M-70 395 C80 345 190 455 312 402 C410 360 485 410 570 386" fill="none" stroke="#bae6fd" strokeWidth="1.5" />
+                <g opacity={0.18 + data.wavePower * 0.55}>
+                  <path className="wave-line" d="M-80 92 C70 35 145 150 280 95 C390 50 480 105 580 82" fill="none" stroke="#bae6fd" strokeWidth="1.5" />
+                  <path className="wave-line" d="M-80 150 C70 100 160 210 285 158 C390 115 480 165 580 142" fill="none" stroke="#67e8f9" strokeWidth="2" />
+                  <path className="wave-line" d="M-80 220 C90 165 170 285 295 228 C400 185 490 235 580 210" fill="none" stroke="#bae6fd" strokeWidth="1.5" />
+                  <path className="wave-line" d="M-80 300 C90 250 170 365 300 310 C400 270 490 315 580 295" fill="none" stroke="#67e8f9" strokeWidth="2" />
+                  <path className="wave-line" d="M-80 390 C80 345 190 455 312 402 C410 360 485 410 580 386" fill="none" stroke="#bae6fd" strokeWidth="1.5" />
                 </g>
 
                 <circle cx="250" cy="250" r="212" fill="none" stroke="rgba(125,211,252,.24)" />
@@ -354,12 +390,12 @@ export default function SailingSimulator() {
                 </g>
 
                 <g transform={`rotate(${data.apparentWind} 250 250)`} opacity="0.95">
-                  <circle className="wind-particle" cx="145" cy="135" r="2.8" fill="#67e8f9" />
-                  <circle className="wind-particle" cx="325" cy="155" r="2.5" fill="#67e8f9" />
-                  <circle className="wind-particle" cx="205" cy="385" r="2" fill="#67e8f9" />
-                  <circle className="wind-particle" cx="370" cy="345" r="2" fill="#67e8f9" />
-                  <circle className="wind-particle" cx="130" cy="285" r="2.6" fill="#67e8f9" />
-                  <circle className="wind-particle" cx="405" cy="245" r="2" fill="#67e8f9" />
+                  <circle className="wind-dot" cx="145" cy="135" r="2.8" fill="#67e8f9" />
+                  <circle className="wind-dot" cx="325" cy="155" r="2.5" fill="#67e8f9" />
+                  <circle className="wind-dot" cx="205" cy="385" r="2" fill="#67e8f9" />
+                  <circle className="wind-dot" cx="370" cy="345" r="2" fill="#67e8f9" />
+                  <circle className="wind-dot" cx="130" cy="285" r="2.6" fill="#67e8f9" />
+                  <circle className="wind-dot" cx="405" cy="245" r="2" fill="#67e8f9" />
                 </g>
 
                 <g transform={`rotate(${movementAngle} 250 250)`} opacity="0.8">
@@ -367,20 +403,26 @@ export default function SailingSimulator() {
                   <text x="250" y="410" textAnchor="middle" fill="#fde68a" fontSize="12" fontWeight="800">TRACK</text>
                 </g>
 
-                <g className="wake-breath" opacity={data.wakePower} transform={`rotate(${movementAngle} 250 250)`}>
+                <g className="wake-pulse" opacity={data.wakePower} transform={`rotate(${movementAngle} 250 250)`}>
                   <path d="M250 386 C228 346 272 346 250 386 Z" fill="#22d3ee" opacity="0.3" filter="url(#softBlur)" />
                   <path d="M250 425 C215 355 285 355 250 425 Z" fill="#67e8f9" opacity="0.18" filter="url(#softBlur)" />
                   <path d="M250 462 C195 360 305 360 250 462 Z" fill="#a5f3fc" opacity="0.11" filter="url(#softBlur)" />
                 </g>
 
-                <g className="hull-inertia" transform={`rotate(${currentHeading} 250 250) rotate(${data.heel} 250 320)`}>
+                <g
+                  transform={`
+                    translate(0 ${waveOffset})
+                    rotate(${currentHeading} 250 250)
+                    rotate(${data.heel + rollOffset} 250 320)
+                  `}
+                >
                   <path d="M250 108 C298 166 306 327 250 398 C194 327 202 166 250 108 Z" fill="url(#hull)" stroke="#f8fafc" strokeWidth="4" filter="url(#glow)" />
                   <path d="M250 135 C280 185 286 305 250 365 C214 305 220 185 250 135 Z" fill="#0f172a" opacity="0.18" />
                   <line x1="250" y1="148" x2="250" y2="358" stroke="#0f172a" strokeWidth="3" opacity="0.55" />
                   <ellipse cx="250" cy="215" rx="22" ry="42" fill="#0f172a" opacity="0.22" />
 
                   <g transform={`rotate(${sail} 250 210)`}>
-                    <path className="sail-pressure" d={mainSailPath} fill={`rgba(34,211,238,${data.sailAlpha})`} stroke="#a5f3fc" strokeWidth="3" filter="url(#glow)" />
+                    <path className="sail-pulse" d={mainSailPath} fill={`rgba(34,211,238,${data.sailAlpha})`} stroke="#a5f3fc" strokeWidth="3" filter="url(#glow)" />
                   </g>
 
                   <g transform={`rotate(${-sail / 2} 250 210)`}>
@@ -388,13 +430,22 @@ export default function SailingSimulator() {
                   </g>
                 </g>
 
-                <foreignObject x="22" y="22" width="170" height="88">
-                  <div className="rounded-2xl border border-cyan-300/20 bg-black/35 px-4 py-3 text-white backdrop-blur">
-                    <div className="text-xs text-slate-400">Apparent Wind</div>
-                    <div className="text-xl font-black text-cyan-200">{data.apparentWind}°</div>
-                    <div className="text-xs text-slate-400">{data.apparentWindSpeed} kn</div>
-                  </div>
-                </foreignObject>
+                {showLearning && (
+                  <foreignObject x="18" y="18" width="205" height="120">
+                    <div className="rounded-2xl border border-cyan-300/20 bg-black/45 px-4 py-3 text-white backdrop-blur">
+                      <div className="text-xs uppercase tracking-[0.25em] text-cyan-200">
+                        Learning Overlay
+                      </div>
+                      <div className="mt-2 text-sm font-black">{data.point}</div>
+                      <div className="mt-1 text-xs text-slate-300">
+                        Apparent: {data.apparentWind}° / {data.apparentWindSpeed} kn
+                      </div>
+                      <div className="text-xs text-slate-300">
+                        İdeal trim: {data.idealTrim.toFixed(0)}°
+                      </div>
+                    </div>
+                  </foreignObject>
+                )}
 
                 <foreignObject x="330" y="400" width="150" height="84">
                   <div className="rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-white backdrop-blur">
@@ -424,11 +475,13 @@ export default function SailingSimulator() {
             </div>
 
             <div className="mt-5 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-4 text-sm font-bold text-cyan-50">
-              {data.noGo
-                ? "No-Go Zone: apparent rüzgâra fazla yakınsın."
-                : data.efficiency >= 80
-                  ? "İyi trim. Kuvvetten hıza geçiş dengeli."
-                  : "Trim geliştirilebilir. Su direnci ve yan kuvvet hızı düşürüyor."}
+              {autoPilot
+                ? "Autopilot: güvenli seyir açısı ve ideal trim hedefleniyor."
+                : data.noGo
+                  ? "No-Go Zone: apparent rüzgâra fazla yakınsın."
+                  : data.efficiency >= 80
+                    ? "İyi trim. Kuvvetten hıza geçiş dengeli."
+                    : "Trim geliştirilebilir. Su direnci ve yan kuvvet hızı düşürüyor."}
             </div>
           </div>
         </div>
@@ -437,14 +490,17 @@ export default function SailingSimulator() {
   );
 }
 
-function Slider({ label, value, setValue, max }: SliderProps) {
+function Slider({ label, value, setValue, max, suffix = "°" }: SliderProps) {
   const updateValue = (rawValue: string) => setValue(Number(rawValue));
 
   return (
     <div className="relative z-20 mb-5 last:mb-0">
       <div className="mb-2 flex justify-between text-sm">
         <span className="text-slate-300">{label}</span>
-        <span className="font-bold text-cyan-200">{value}°</span>
+        <span className="font-bold text-cyan-200">
+          {value}
+          {suffix}
+        </span>
       </div>
 
       <input
