@@ -330,7 +330,7 @@ export default function SailingSimulator() {
           YYE Sailing Simulator
         </h1>
 
-        <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-300 md:text-base">
+        <p className="mt-4 max-w-4xl text-sm leading-6 text-slate-300 md:text-base">
           AI eğitmen, gerçekçi tekne hareketi, dalga hissi, inertia smoothing,
           autopilot training mode ve canlı learning overlay ile geliştirilmiş YYE eğitim simülatörü.
         </p>
@@ -339,37 +339,40 @@ export default function SailingSimulator() {
           LIVE TRAINING ENGINE ACTIVE
         </div>
 
-        <div className="mt-8 grid grid-cols-1 gap-5 xl:grid-cols-[320px_minmax(520px,1fr)_320px]">
+        <div className="mt-8 grid grid-cols-1 gap-5">
           <div className="rounded-3xl border border-white/10 bg-white/[0.06] p-4 backdrop-blur-xl md:p-5">
             <h2 className="mb-5 text-xl font-bold">Kontroller</h2>
 
-            <Slider label="True Wind" value={trueWind} setValue={setTrueWind} max={360} />
-            <Slider label="Hedef Tekne Yönü" value={targetHeading} setValue={setTargetHeading} max={360} />
-            <Slider label="Yelken" value={sail} setValue={setSail} max={90} />
+            <div className="grid gap-5 md:grid-cols-3">
+              <Slider label="True Wind" value={trueWind} setValue={setTrueWind} max={360} />
+              <Slider label="Hedef Tekne Yönü" value={targetHeading} setValue={setTargetHeading} max={360} />
+              <Slider label="Yelken" value={sail} setValue={setSail} max={90} />
+            </div>
 
-            <button
-              type="button"
-              onClick={() => setAutoPilot((v) => !v)}
-              className={`mt-4 w-full rounded-2xl border px-4 py-3 text-sm font-bold transition ${
-                autoPilot
-                  ? "border-cyan-300 bg-cyan-300 text-slate-950"
-                  : "border-white/10 bg-white/10 text-white"
-              }`}
-            >
-              {autoPilot ? "Autopilot Training: ON" : "Autopilot Training: OFF"}
-            </button>
+            <div className="mt-5 grid gap-3 md:grid-cols-3">
+              <button
+                type="button"
+                onClick={() => setAutoPilot((v) => !v)}
+                className={`rounded-2xl border px-4 py-3 text-sm font-bold transition ${
+                  autoPilot
+                    ? "border-cyan-300 bg-cyan-300 text-slate-950"
+                    : "border-white/10 bg-white/10 text-white"
+                }`}
+              >
+                {autoPilot ? "Autopilot Training: ON" : "Autopilot Training: OFF"}
+              </button>
 
-            <button
-              type="button"
-              onClick={() => setShowLearning((v) => !v)}
-              className="mt-3 w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-bold text-white"
-            >
-              Learning Overlay {showLearning ? "Açık" : "Kapalı"}
-            </button>
+              <button
+                type="button"
+                onClick={() => setShowLearning((v) => !v)}
+                className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-bold text-white"
+              >
+                Learning Overlay {showLearning ? "Açık" : "Kapalı"}
+              </button>
 
-            <div className="mt-6 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-4 text-sm leading-6 text-cyan-50">
-              Autopilot açıkken sistem rüzgâra göre güvenli seyir açısı ve yelken
-              trimini otomatik düzeltir.
+              <div className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-4 text-sm leading-6 text-cyan-50">
+                Autopilot açıkken sistem rüzgâra göre güvenli seyir açısı ve yelken trimini otomatik düzeltir.
+              </div>
             </div>
 
             <div className="mt-4 rounded-2xl border border-white/10 bg-black/25 p-4 text-sm leading-6 text-slate-200">
@@ -378,8 +381,8 @@ export default function SailingSimulator() {
           </div>
 
           <div className="rounded-3xl border border-cyan-300/20 bg-[#06111f] p-3 shadow-[0_0_70px_rgba(34,211,238,0.18)] md:p-4">
-            <div className="flex min-h-[400px] items-center justify-center rounded-[24px] border border-white/10 bg-[#020b16] p-2 md:min-h-[500px] lg:min-h-[600px]">
-              <svg viewBox="0 0 500 500" className="h-auto w-full max-w-[520px]">
+            <div className="flex min-h-[520px] items-center justify-center rounded-[24px] border border-white/10 bg-[#020b16] p-2 md:min-h-[680px] lg:min-h-[760px]">
+              <svg viewBox="0 0 500 500" className="h-auto w-full max-w-[720px]">
                 <defs>
                   <radialGradient id="seaGlow" cx="50%" cy="50%" r="55%">
                     <stop offset="0%" stopColor="#155e75" stopOpacity="0.64" />
@@ -518,7 +521,7 @@ export default function SailingSimulator() {
           <div className="rounded-3xl border border-white/10 bg-white/[0.06] p-4 backdrop-blur-xl md:p-5">
             <h2 className="mb-5 text-xl font-bold">YYE Performans</h2>
 
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
               <Metric label="Seyir tipi" value={data.point} />
               <Metric label="Apparent bağıl rüzgâr" value={`${data.apparentRelative}°`} />
               <Metric label="Apparent wind" value={`${data.apparentWind}° / ${data.apparentWindSpeed} kn`} />
