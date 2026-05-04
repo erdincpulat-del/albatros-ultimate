@@ -9,7 +9,6 @@ type SliderProps = {
   value: number;
   setValue: (value: number) => void;
   max: number;
-  suffix?: string;
 };
 
 function clamp(value: number, min: number, max: number) {
@@ -93,19 +92,29 @@ export default function SailingSimulator() {
 
       if (autoPilot) {
         const recommended = liveDataRef.current.recommendedHeading;
-        setTargetHeading((old) => normalizeAngle(old + shortestAngleDiff(recommended, old) * 0.035));
-        setSail((old) => Math.round(old + (liveDataRef.current.idealTrim - old) * 0.045));
+
+        setTargetHeading((old) =>
+          normalizeAngle(old + shortestAngleDiff(recommended, old) * 0.035)
+        );
+
+        setSail((old) =>
+          Math.round(old + (liveDataRef.current.idealTrim - old) * 0.045)
+        );
       }
 
       setCurrentHeading((current) => {
         const diff = shortestAngleDiff(targetHeading, current);
         const spring = diff * 0.85;
-        const damping = 0.93;
+        const damping = 0.97;
+        const turnMass = 1.8;
 
         headingVelocityRef.current =
-          (headingVelocityRef.current + spring * dt) * damping;
+          (headingVelocityRef.current + (spring / turnMass) * dt) * damping;
 
-        if (Math.abs(diff) < 0.05 && Math.abs(headingVelocityRef.current) < 0.02) {
+        if (
+          Math.abs(diff) < 0.05 &&
+          Math.abs(headingVelocityRef.current) < 0.02
+        ) {
           headingVelocityRef.current = 0;
           return normalizeAngle(targetHeading);
         }
@@ -194,14 +203,21 @@ export default function SailingSimulator() {
     const sideForce = noGo
       ? 0
       : clamp(
-          Math.sin((Math.min(apparentRelative, 180 - apparentRelative) * Math.PI) / 180) *
+          Math.sin(
+            (Math.min(apparentRelative, 180 - apparentRelative) * Math.PI) / 180
+          ) *
             sailPressure *
             0.86,
           0,
           100
         );
 
-    const recommendedHeading = normalizeAngle(trueWind + 55);
+    const recommendedHeading =
+      apparentRelative < 35
+        ? normalizeAngle(trueWind + 50)
+        : apparentRelative > 140
+          ? normalizeAngle(trueWind + 160)
+          : normalizeAngle(trueWind + 55);
 
     liveDataRef.current = {
       driveForce,
@@ -210,11 +226,33 @@ export default function SailingSimulator() {
       recommendedHeading,
     };
 
-    const heel = noGo ? 0 : clamp((sideForce / 100) * 22, 0, 22);
+    const heel = noGo ? 0 : clamp((sideForce / 100) * 24, 0, 24);
     const wakePower = clamp(boatSpeed / 8, 0.12, 1);
     const wavePower = clamp(boatSpeed / 8, 0.16, 1);
     const efficiency = clamp(Math.round(driveForce), 0, 100);
     const sailAlpha = clamp(0.35 + (sailPressure / 100) * 0.65, 0.35, 1);
+
+    const message =
+      noGo
+        ? "No-Go Zone: rüzgâra fazla yakınsın."
+        : sailPressure < 30
+          ? "Trim kötü. Yelkeni apparent rüzgâra göre yeniden ayarla."
+          : sailPressure > 60 && driftAngle <= 5
+            ? "Verimli sürüş. Hız ve trim dengeli."
+            : driftAngle > 5
+              ? "Aşırı yan kayma. Tekneyi biraz daha kontrollü açıya al."
+              : "Trim geliştirilebilir. Gücü koru, yelkeni ince ayarla.";
+
+    const aiInstructor =
+      noGo
+        ? "Eğitmen: Rüzgâra çok yaklaştın. Başını 10–15 derece aç, hız yeniden gelsin."
+        : driftAngle > 6
+          ? "Eğitmen: Yan kuvvet arttı. Yelkeni biraz boşla ve tekneyi daha dengeli açıya getir."
+          : sailPressure < 35
+            ? "Eğitmen: Yelken basıncı düşük. Trim açısını ideal noktaya yaklaştır."
+            : sailPressure > 70
+              ? "Eğitmen: Güzel. Tekne güç aldı. Şimdi rotayı sabit tut ve hızı koru."
+              : "Eğitmen: Dengeli seyirdesin. Küçük trim düzeltmeleriyle verimi artırabilirsin.";
 
     return {
       apparentWind: Math.round(apparentWind),
@@ -231,9 +269,11 @@ export default function SailingSimulator() {
       sailAlpha,
       noGo,
       recommendedHeading,
+      message,
+      aiInstructor,
       point: pointOfSail(apparentRelative),
     };
-  }, [trueWind, currentHeading, sail, boatSpeed]);
+  }, [trueWind, currentHeading, sail, boatSpeed, driftAngle]);
 
   const mainSailPath =
     data.sailPressure >= 75
@@ -242,8 +282,15 @@ export default function SailingSimulator() {
         ? "M250 210 C345 230 350 322 262 358 Z"
         : "M250 210 C315 238 328 305 262 346 Z";
 
-  const waveOffset = Math.sin(wavePhase * 2.1) * 4;
+  const waveOffset =
+    Math.sin(wavePhase * 0.8) * 2.5 +
+    Math.sin(wavePhase * 2.5 + boatSpeed * 0.5) * 1.2 +
+    Math.sin(wavePhase * 6 + boatSpeed) * 0.4;
+
+  const pitchOffset = Math.sin(wavePhase * 1.9 + boatSpeed * 0.4) * 1.8;
   const rollOffset = Math.sin(wavePhase * 1.35) * 1.4;
+  const realisticHeel = data.heel + rollOffset + driftAngle * 0.18;
+  const bowLift = clamp(boatSpeed / 8, 0, 1) * -3 + pitchOffset;
 
   return (
     <main className="min-h-screen bg-[#020617] px-4 py-8 text-white md:px-6 md:py-10">
@@ -253,25 +300,21 @@ export default function SailingSimulator() {
           50% { opacity: .55; transform: translateX(10px); }
           100% { opacity: .22; transform: translateX(70px); }
         }
-
         @keyframes windParticle {
           0% { opacity: .1; transform: translateX(-32px); }
           50% { opacity: .9; transform: translateX(8px); }
           100% { opacity: .16; transform: translateX(45px); }
         }
-
         @keyframes wakePulse {
           0% { opacity: .12; transform: scaleY(.82) scaleX(.9); }
           50% { opacity: .52; transform: scaleY(1.2) scaleX(1.08); }
           100% { opacity: .12; transform: scaleY(.82) scaleX(.9); }
         }
-
         @keyframes sailPulse {
           0% { opacity: .72; }
           50% { opacity: 1; }
           100% { opacity: .72; }
         }
-
         .wave-line { animation: shimmerSea 7s ease-in-out infinite alternate; }
         .wind-dot { animation: windParticle 3s ease-in-out infinite alternate; }
         .wake-pulse { animation: wakePulse 2.2s ease-in-out infinite; transform-origin: 250px 395px; }
@@ -288,11 +331,15 @@ export default function SailingSimulator() {
         </h1>
 
         <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-300 md:text-base">
-          Gerçek dalga hissi, inertia smoothing, autopilot training mode ve canlı
-          learning overlay ile geliştirilmiş YYE eğitim simülatörü.
+          AI eğitmen, gerçekçi tekne hareketi, dalga hissi, inertia smoothing,
+          autopilot training mode ve canlı learning overlay ile geliştirilmiş YYE eğitim simülatörü.
         </p>
 
-        <div className="mt-8 grid gap-5 xl:grid-cols-[320px_minmax(520px,1fr)_320px]">
+        <div className="mt-4 text-xs tracking-[0.35em] text-cyan-300">
+          LIVE TRAINING ENGINE ACTIVE
+        </div>
+
+        <div className="mt-8 grid grid-cols-1 gap-5 xl:grid-cols-[320px_minmax(520px,1fr)_320px]">
           <div className="rounded-3xl border border-white/10 bg-white/[0.06] p-4 backdrop-blur-xl md:p-5">
             <h2 className="mb-5 text-xl font-bold">Kontroller</h2>
 
@@ -324,10 +371,14 @@ export default function SailingSimulator() {
               Autopilot açıkken sistem rüzgâra göre güvenli seyir açısı ve yelken
               trimini otomatik düzeltir.
             </div>
+
+            <div className="mt-4 rounded-2xl border border-white/10 bg-black/25 p-4 text-sm leading-6 text-slate-200">
+              {data.aiInstructor}
+            </div>
           </div>
 
           <div className="rounded-3xl border border-cyan-300/20 bg-[#06111f] p-3 shadow-[0_0_70px_rgba(34,211,238,0.18)] md:p-4">
-            <div className="flex min-h-[360px] items-center justify-center rounded-[24px] border border-white/10 bg-[#020b16] p-2 sm:min-h-[460px] lg:min-h-[560px]">
+            <div className="flex min-h-[400px] items-center justify-center rounded-[24px] border border-white/10 bg-[#020b16] p-2 md:min-h-[500px] lg:min-h-[600px]">
               <svg viewBox="0 0 500 500" className="h-auto w-full max-w-[520px]">
                 <defs>
                   <radialGradient id="seaGlow" cx="50%" cy="50%" r="55%">
@@ -411,9 +462,9 @@ export default function SailingSimulator() {
 
                 <g
                   transform={`
-                    translate(0 ${waveOffset})
+                    translate(0 ${waveOffset + bowLift})
                     rotate(${currentHeading} 250 250)
-                    rotate(${data.heel + rollOffset} 250 320)
+                    rotate(${realisticHeel} 250 320)
                   `}
                 >
                   <path d="M250 108 C298 166 306 327 250 398 C194 327 202 166 250 108 Z" fill="url(#hull)" stroke="#f8fafc" strokeWidth="4" filter="url(#glow)" />
@@ -431,10 +482,10 @@ export default function SailingSimulator() {
                 </g>
 
                 {showLearning && (
-                  <foreignObject x="18" y="18" width="205" height="120">
+                  <foreignObject x="18" y="18" width="230" height="168">
                     <div className="rounded-2xl border border-cyan-300/20 bg-black/45 px-4 py-3 text-white backdrop-blur">
                       <div className="text-xs uppercase tracking-[0.25em] text-cyan-200">
-                        Learning Overlay
+                        AI Instructor
                       </div>
                       <div className="mt-2 text-sm font-black">{data.point}</div>
                       <div className="mt-1 text-xs text-slate-300">
@@ -443,6 +494,12 @@ export default function SailingSimulator() {
                       <div className="text-xs text-slate-300">
                         İdeal trim: {data.idealTrim.toFixed(0)}°
                       </div>
+                      <p className="mt-2 text-xs font-bold text-cyan-100">
+                        {data.message}
+                      </p>
+                      <p className="mt-2 text-[11px] leading-4 text-cyan-200 opacity-90">
+                        {data.aiInstructor}
+                      </p>
                     </div>
                   </foreignObject>
                 )}
@@ -477,11 +534,7 @@ export default function SailingSimulator() {
             <div className="mt-5 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-4 text-sm font-bold text-cyan-50">
               {autoPilot
                 ? "Autopilot: güvenli seyir açısı ve ideal trim hedefleniyor."
-                : data.noGo
-                  ? "No-Go Zone: apparent rüzgâra fazla yakınsın."
-                  : data.efficiency >= 80
-                    ? "İyi trim. Kuvvetten hıza geçiş dengeli."
-                    : "Trim geliştirilebilir. Su direnci ve yan kuvvet hızı düşürüyor."}
+                : data.message}
             </div>
           </div>
         </div>
@@ -490,17 +543,14 @@ export default function SailingSimulator() {
   );
 }
 
-function Slider({ label, value, setValue, max, suffix = "°" }: SliderProps) {
+function Slider({ label, value, setValue, max }: SliderProps) {
   const updateValue = (rawValue: string) => setValue(Number(rawValue));
 
   return (
     <div className="relative z-20 mb-5 last:mb-0">
       <div className="mb-2 flex justify-between text-sm">
         <span className="text-slate-300">{label}</span>
-        <span className="font-bold text-cyan-200">
-          {value}
-          {suffix}
-        </span>
+        <span className="font-bold text-cyan-200">{value}°</span>
       </div>
 
       <input

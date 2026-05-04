@@ -1,6 +1,9 @@
 export function getWaveMotion(time: number, speed: number) {
-  const wave1 = Math.sin(time * 0.001 + speed) * 2;
-  const wave2 = Math.sin(time * 0.002 + speed * 0.5) * 1.5;
+  const t = time * 0.001;
 
-  return wave1 + wave2;
+  const swell = Math.sin(t * 0.8) * 2.5;
+  const chop = Math.sin(t * 2.5 + speed * 0.5) * 1.2;
+  const micro = Math.sin(t * 6 + speed) * 0.4;
+
+  return swell + chop + micro;
 }

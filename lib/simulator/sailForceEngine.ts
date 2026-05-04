@@ -1,5 +1,3 @@
-import { clamp } from "../utils/clamp";
-
 export function calculateSailForce(
   apparentWindAngle: number,
   sailTrim: number
@@ -8,7 +6,7 @@ export function calculateSailForce(
 
   const efficiency = Math.cos((diff * Math.PI) / 180);
 
-  const lift = clamp(efficiency, 0, 1);
+  const lift = Math.max(0, Math.pow(efficiency, 1.5)); // nonlinear
   const drag = 1 - lift;
 
   return {

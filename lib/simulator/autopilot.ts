@@ -1,7 +1,22 @@
-export function autopilotStep(currentHeading: number, windDir: number) {
-  const optimalAngle = (windDir + 45) % 360;
+export function autopilotStep(
+  heading: number,
+  windDir: number,
+  apparentAngle: number
+) {
+  // no-go zone kaçışı
+  if (apparentAngle < 35) {
+    return windDir + 50;
+  }
 
-  const diff = optimalAngle - currentHeading;
+  // optimum VMG
+  if (apparentAngle < 70) {
+    return windDir + 45;
+  }
 
-  return currentHeading + diff * 0.05;
+  // downwind optimizasyon
+  if (apparentAngle > 140) {
+    return windDir + 160;
+  }
+
+  return heading;
 }
