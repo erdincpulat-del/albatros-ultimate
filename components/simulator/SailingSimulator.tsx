@@ -9,6 +9,7 @@ type SliderProps = {
   value: number;
   setValue: (value: number) => void;
   max: number;
+  suffix?: string;
 };
 
 function clamp(value: number, min: number, max: number) {
@@ -61,6 +62,7 @@ export default function SailingSimulator() {
   const [trueWind, setTrueWind] = useState(135);
   const [targetHeading, setTargetHeading] = useState(30);
   const [sail, setSail] = useState(16);
+  const [fairlead, setFairlead] = useState(50);
   const [autoPilot, setAutoPilot] = useState(false);
   const [showLearning, setShowLearning] = useState(true);
 
@@ -100,6 +102,8 @@ export default function SailingSimulator() {
         setSail((old) =>
           Math.round(old + (liveDataRef.current.idealTrim - old) * 0.045)
         );
+
+        setFairlead((old) => Math.round(old + (50 - old) * 0.025));
       }
 
       setCurrentHeading((current) => {
@@ -185,7 +189,19 @@ export default function SailingSimulator() {
     const idealTrim = clamp(apparentRelative / 2.5, 5, 82);
     const trimError = Math.abs(sail - idealTrim);
 
-    const trimQuality = noGo ? 0 : clamp(1 - trimError / 45, 0, 1);
+    // Fairlead training model:
+    // 0 = çok geride, 50 = dengeli, 100 = çok ileride.
+    // İleri alınca jib'in alt kısmı daha güçlü kapanır; geri alınca üst kısmı daha fazla açılır.
+    const fairleadBalance = (fairlead - 50) / 50;
+    const upperFlow = noGo
+      ? 0
+      : clamp(1 - Math.abs(trimError - fairleadBalance * 16) / 55, 0, 1);
+    const lowerFlow = noGo
+      ? 0
+      : clamp(1 - Math.abs(trimError + fairleadBalance * 16) / 55, 0, 1);
+    const fairleadScore = clamp((upperFlow + lowerFlow) / 2, 0, 1);
+
+    const trimQuality = noGo ? 0 : clamp((1 - trimError / 45) * (0.72 + fairleadScore * 0.28), 0, 1);
     const anglePower = noGo
       ? 0
       : clamp(Math.sin((apparentRelative * Math.PI) / 180), 0, 1);
@@ -243,6 +259,15 @@ export default function SailingSimulator() {
               ? "Aşırı yan kayma. Tekneyi biraz daha kontrollü açıya al."
               : "Trim geliştirilebilir. Gücü koru, yelkeni ince ayarla.";
 
+    const fairleadMessage =
+      noGo
+        ? "Fairlead etkisi düşük: önce rüzgârdan çık."
+        : fairlead < 35
+          ? "Fairlead geride: üst yelken daha fazla açılır, alt bölüm zayıflayabilir."
+          : fairlead > 65
+            ? "Fairlead ileride: alt yelken daha fazla kapanır, üst bölüm boğulabilir."
+            : "Fairlead dengeli: üst-alt hava akışı daha temiz.";
+
     const aiInstructor =
       noGo
         ? "Eğitmen: Rüzgâra çok yaklaştın. Başını 10–15 derece aç, hız yeniden gelsin."
@@ -250,7 +275,9 @@ export default function SailingSimulator() {
           ? "Eğitmen: Yan kuvvet arttı. Yelkeni biraz boşla ve tekneyi daha dengeli açıya getir."
           : sailPressure < 35
             ? "Eğitmen: Yelken basıncı düşük. Trim açısını ideal noktaya yaklaştır."
-            : sailPressure > 70
+            : fairleadScore < 0.45
+          ? `Eğitmen: ${fairleadMessage}`
+          : sailPressure > 70
               ? "Eğitmen: Güzel. Tekne güç aldı. Şimdi rotayı sabit tut ve hızı koru."
               : "Eğitmen: Dengeli seyirdesin. Küçük trim düzeltmeleriyle verimi artırabilirsin.";
 
@@ -271,9 +298,13 @@ export default function SailingSimulator() {
       recommendedHeading,
       message,
       aiInstructor,
+      fairleadMessage,
+      upperFlow,
+      lowerFlow,
+      fairleadScore,
       point: pointOfSail(apparentRelative),
     };
-  }, [trueWind, currentHeading, sail, boatSpeed, driftAngle]);
+  }, [trueWind, currentHeading, sail, fairlead, boatSpeed, driftAngle]);
 
   const mainSailPath =
     data.sailPressure >= 75
@@ -318,6 +349,12 @@ export default function SailingSimulator() {
         .wave-line { animation: shimmerSea 7s ease-in-out infinite alternate; }
         .wind-dot { animation: windParticle 3s ease-in-out infinite alternate; }
         .wake-pulse { animation: wakePulse 2.2s ease-in-out infinite; transform-origin: 250px 395px; }
+        @keyframes airflowMove {
+          0% { stroke-dashoffset: 32; opacity: .18; }
+          50% { opacity: .72; }
+          100% { stroke-dashoffset: -32; opacity: .18; }
+        }
+        .airflow-line { animation: airflowMove 1.8s linear infinite; }
         .sail-pulse { animation: sailPulse 2s ease-in-out infinite; }
       `}</style>
 
@@ -343,10 +380,11 @@ export default function SailingSimulator() {
           <div className="rounded-3xl border border-white/10 bg-white/[0.06] p-4 backdrop-blur-xl md:p-5">
             <h2 className="mb-5 text-xl font-bold">Kontroller</h2>
 
-            <div className="grid gap-5 md:grid-cols-3">
+            <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
               <Slider label="True Wind" value={trueWind} setValue={setTrueWind} max={360} />
               <Slider label="Hedef Tekne Yönü" value={targetHeading} setValue={setTargetHeading} max={360} />
               <Slider label="Yelken" value={sail} setValue={setSail} max={90} />
+              <Slider label="Jib Fairlead" value={fairlead} setValue={setFairlead} max={100} suffix="%" />
             </div>
 
             <div className="mt-5 grid gap-3 md:grid-cols-3">
@@ -377,6 +415,10 @@ export default function SailingSimulator() {
 
             <div className="mt-4 rounded-2xl border border-white/10 bg-black/25 p-4 text-sm leading-6 text-slate-200">
               {data.aiInstructor}
+            </div>
+
+            <div className="mt-4 rounded-2xl border border-blue-300/20 bg-blue-300/10 p-4 text-sm leading-6 text-blue-50">
+              Jib Fairlead: {data.fairleadMessage}
             </div>
           </div>
 
@@ -452,6 +494,40 @@ export default function SailingSimulator() {
                   <circle className="wind-dot" cx="405" cy="245" r="2" fill="#67e8f9" />
                 </g>
 
+                {/* JIB AIRFLOW TRAINING LAYER */}
+                <g transform={`rotate(${data.apparentWind} 250 250)`}>
+                  {[0, 1, 2, 3].map((i) => (
+                    <line
+                      key={`upper-flow-${i}`}
+                      className="airflow-line"
+                      x1="42"
+                      y1={128 + i * 26}
+                      x2="456"
+                      y2={128 + i * 26 + Math.sin(wavePhase * 2 + i) * 7}
+                      stroke="#60a5fa"
+                      strokeWidth="3"
+                      strokeDasharray="14 10"
+                      opacity={0.18 + data.upperFlow * 0.58}
+                      strokeLinecap="round"
+                    />
+                  ))}
+                  {[0, 1, 2, 3].map((i) => (
+                    <line
+                      key={`lower-flow-${i}`}
+                      className="airflow-line"
+                      x1="42"
+                      y1={278 + i * 26}
+                      x2="456"
+                      y2={278 + i * 26 + Math.cos(wavePhase * 2 + i) * 7}
+                      stroke="#2563eb"
+                      strokeWidth="3"
+                      strokeDasharray="14 10"
+                      opacity={0.18 + data.lowerFlow * 0.58}
+                      strokeLinecap="round"
+                    />
+                  ))}
+                </g>
+
                 <g transform={`rotate(${movementAngle} 250 250)`} opacity="0.8">
                   <line x1="250" y1="250" x2="250" y2="390" stroke="#facc15" strokeWidth="2" strokeDasharray="6 8" />
                   <text x="250" y="410" textAnchor="middle" fill="#fde68a" fontSize="12" fontWeight="800">TRACK</text>
@@ -485,7 +561,7 @@ export default function SailingSimulator() {
                 </g>
 
                 {showLearning && (
-                  <foreignObject x="18" y="18" width="230" height="168">
+                  <foreignObject x="18" y="18" width="244" height="204">
                     <div className="rounded-2xl border border-cyan-300/20 bg-black/45 px-4 py-3 text-white backdrop-blur">
                       <div className="text-xs uppercase tracking-[0.25em] text-cyan-200">
                         AI Instructor
@@ -500,6 +576,10 @@ export default function SailingSimulator() {
                       <p className="mt-2 text-xs font-bold text-cyan-100">
                         {data.message}
                       </p>
+                      <div className="mt-2 grid grid-cols-2 gap-2 text-[10px] text-slate-300">
+                        <span>Upper flow: {(data.upperFlow * 100).toFixed(0)}%</span>
+                        <span>Lower flow: {(data.lowerFlow * 100).toFixed(0)}%</span>
+                      </div>
                       <p className="mt-2 text-[11px] leading-4 text-cyan-200 opacity-90">
                         {data.aiInstructor}
                       </p>
@@ -526,6 +606,9 @@ export default function SailingSimulator() {
               <Metric label="Apparent bağıl rüzgâr" value={`${data.apparentRelative}°`} />
               <Metric label="Apparent wind" value={`${data.apparentWind}° / ${data.apparentWindSpeed} kn`} />
               <Metric label="İdeal trim" value={`${data.idealTrim.toFixed(0)}°`} />
+              <Metric label="Jib fairlead" value={`${fairlead}%`} />
+              <Metric label="Upper flow" value={`${(data.upperFlow * 100).toFixed(0)}%`} />
+              <Metric label="Lower flow" value={`${(data.lowerFlow * 100).toFixed(0)}%`} />
               <Metric label="Sail pressure" value={`${data.sailPressure.toFixed(0)}%`} />
               <Metric label="Drive force" value={`${data.driveForce.toFixed(0)}%`} />
               <Metric label="Side force" value={`${data.sideForce.toFixed(0)}%`} />
@@ -542,55 +625,47 @@ export default function SailingSimulator() {
           </div>
         </div>
 
-
         <div className="mt-16 text-center">
-          <div className="mx-auto max-w-2xl rounded-3xl border border-cyan-300/20 bg-[#020b16] p-8 shadow-[0_0_50px_rgba(34,211,238,0.14)]">
-            <p className="text-xs tracking-[0.28em] text-cyan-300">
-              ALBATROS SAILING TRAINING
-            </p>
-
+          <div className="mx-auto max-w-2xl rounded-3xl border border-cyan-300/20 bg-[#020b16] p-8 shadow-[0_0_60px_rgba(34,211,238,0.14)]">
+            <p className="text-xs tracking-[0.35em] text-cyan-300">ALBATROS SAILING</p>
             <h2 className="mt-3 text-2xl font-black text-white md:text-3xl">
               Gerçek Denizde Uygulamak İster misin?
             </h2>
-
             <p className="mt-3 text-sm leading-6 text-slate-400 md:text-base">
-              Bu simülatörde öğrendiğin her şey, gerçek eğitimlerimizin temelidir.
-              Şimdi bunu denizde deneyimleme zamanı.
+              Bu simülatörde öğrendiğin rüzgâr okuma, yelken trim ve fairlead mantığı
+              gerçek eğitimlerimizin temelidir. Şimdi bunu denizde deneyimleme zamanı.
             </p>
-
-            <div className="mt-7 flex flex-col justify-center gap-4 md:flex-row">
+            <div className="mt-6 flex flex-col justify-center gap-4 md:flex-row">
               <a
                 href="https://wa.me/905324873813?text=Merhaba%20YYE%20Sailing%20Simulator%20%C3%BCzerinden%20geldim.%20E%C4%9Fitim%20programlar%C4%B1%20hakk%C4%B1nda%20bilgi%20almak%20istiyorum."
                 target="_blank"
                 rel="noopener noreferrer"
-                className="rounded-2xl bg-cyan-300 px-7 py-3 text-sm font-black text-slate-950 transition hover:bg-cyan-200"
+                className="rounded-xl bg-cyan-400 px-6 py-3 font-bold text-slate-950 transition hover:bg-cyan-300"
               >
                 WhatsApp’tan Bilgi Al
               </a>
-
               <a
                 href="/programlar"
-                className="rounded-2xl border border-white/15 px-7 py-3 text-sm font-bold text-white transition hover:bg-white/10"
+                className="rounded-xl border border-white/20 px-6 py-3 font-bold text-white transition hover:bg-white/10"
               >
                 Eğitim Programlarını İncele
               </a>
             </div>
           </div>
         </div>
-
       </section>
     </main>
   );
 }
 
-function Slider({ label, value, setValue, max }: SliderProps) {
+function Slider({ label, value, setValue, max, suffix = "°" }: SliderProps) {
   const updateValue = (rawValue: string) => setValue(Number(rawValue));
 
   return (
     <div className="relative z-20 mb-5 last:mb-0">
       <div className="mb-2 flex justify-between text-sm">
         <span className="text-slate-300">{label}</span>
-        <span className="font-bold text-cyan-200">{value}°</span>
+        <span className="font-bold text-cyan-200">{value}{suffix}</span>
       </div>
 
       <input
