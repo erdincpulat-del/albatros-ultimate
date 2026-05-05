@@ -381,8 +381,8 @@ export default function SailingSimulator() {
           </div>
 
           <div className="rounded-3xl border border-cyan-300/20 bg-[#06111f] p-3 shadow-[0_0_70px_rgba(34,211,238,0.18)] md:p-4">
-            <div className="flex min-h-[520px] items-center justify-center rounded-[24px] border border-white/10 bg-[#020b16] p-2 md:min-h-[680px] lg:min-h-[760px]">
-              <svg viewBox="0 0 500 500" className="h-auto w-full max-w-[720px]">
+            <div className="flex min-h-[420px] items-center justify-center rounded-[24px] border border-white/10 bg-[#020b16] p-2 md:min-h-[540px] lg:min-h-[620px]">
+              <svg viewBox="0 0 500 500" className="h-auto w-full max-w-[500px]">
                 <defs>
                   <radialGradient id="seaGlow" cx="50%" cy="50%" r="55%">
                     <stop offset="0%" stopColor="#155e75" stopOpacity="0.64" />
