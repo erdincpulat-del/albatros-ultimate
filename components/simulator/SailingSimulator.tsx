@@ -11,6 +11,70 @@ type SliderProps = {
   max: number;
 };
 
+type TrainingScenario = {
+  id: string;
+  title: string;
+  subtitle: string;
+  targetPoint: string;
+  targetWind: number;
+  targetHeading: number;
+  targetSail: number;
+  minSpeed: number;
+  maxDrift: number;
+  coaching: string;
+};
+
+const TRAINING_SCENARIOS: TrainingScenario[] = [
+  {
+    id: "close-reach-control",
+    title: "Senaryo 1 · Dar Apaz Kontrolü",
+    subtitle: "Hedef: temiz akış, 6 knot üzeri hız ve düşük drift.",
+    targetPoint: "Dar Apaz",
+    targetWind: 135,
+    targetHeading: 70,
+    targetSail: 22,
+    minSpeed: 6,
+    maxDrift: 5,
+    coaching: "Rüzgârı omuz hizasında hisset; yelkeni kapatma, akışı temiz tut.",
+  },
+  {
+    id: "beam-reach-speed",
+    title: "Senaryo 2 · Apaz Hız Üretimi",
+    subtitle: "Hedef: basıncı koru, tekneyi hızlandır, yan kaymayı azalt.",
+    targetPoint: "Apaz",
+    targetWind: 160,
+    targetHeading: 70,
+    targetSail: 35,
+    minSpeed: 7,
+    maxDrift: 6,
+    coaching: "Trim fazla sıkıysa akış kırılır; fazla açıksa güç kaçar.",
+  },
+  {
+    id: "broad-reach-balance",
+    title: "Senaryo 3 · Geniş Apaz Denge",
+    subtitle: "Hedef: rahat akış, güvenli açı, dengeli hız.",
+    targetPoint: "Geniş Apaz",
+    targetWind: 210,
+    targetHeading: 70,
+    targetSail: 55,
+    minSpeed: 5.5,
+    maxDrift: 7,
+    coaching: "Tekneyi bastırmadan yürüt; hız sabit kalıyorsa trim doğruya yakındır.",
+  },
+  {
+    id: "no-go-recovery",
+    title: "Senaryo 4 · No-Go Kurtarma",
+    subtitle: "Hedef: rüzgâra fazla yaklaşınca açıyı büyütüp hızı geri almak.",
+    targetPoint: "Orsa",
+    targetWind: 90,
+    targetHeading: 45,
+    targetSail: 18,
+    minSpeed: 4,
+    maxDrift: 6,
+    coaching: "No-Go bölgesinde ısrar etme; başı aç, yelken tekrar güç alsın.",
+  },
+];
+
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
@@ -63,6 +127,7 @@ export default function SailingSimulator() {
   const [sail, setSail] = useState(16);
   const [autoPilot, setAutoPilot] = useState(false);
   const [showLearning, setShowLearning] = useState(true);
+  const [scenarioIndex, setScenarioIndex] = useState(0);
 
   const [currentHeading, setCurrentHeading] = useState(30);
   const [boatSpeed, setBoatSpeed] = useState(0);
@@ -79,6 +144,25 @@ export default function SailingSimulator() {
     idealTrim: 16,
     recommendedHeading: 30,
   });
+
+  const activeScenario = TRAINING_SCENARIOS[scenarioIndex];
+
+  const applyScenario = () => {
+    setTrueWind(activeScenario.targetWind);
+    setTargetHeading(activeScenario.targetHeading);
+    setCurrentHeading(activeScenario.targetHeading);
+    setMovementAngle(activeScenario.targetHeading);
+    setSail(activeScenario.targetSail);
+    setBoatSpeed(0);
+    setDriftAngle(0);
+    velocityRef.current = { x: 0, y: 0 };
+    headingVelocityRef.current = 0;
+    setAutoPilot(false);
+  };
+
+  const nextScenario = () => {
+    setScenarioIndex((index) => (index + 1) % TRAINING_SCENARIOS.length);
+  };
 
   useEffect(() => {
     let frame: number;
@@ -292,6 +376,22 @@ export default function SailingSimulator() {
   const realisticHeel = data.heel + rollOffset + driftAngle * 0.18;
   const bowLift = clamp(boatSpeed / 8, 0, 1) * -3 + pitchOffset;
 
+  const trimGap = Math.abs(sail - data.idealTrim);
+  const pointScore = data.point === activeScenario.targetPoint ? 25 : 0;
+  const speedScore = clamp((boatSpeed / activeScenario.minSpeed) * 25, 0, 25);
+  const driftScore = clamp(((activeScenario.maxDrift - driftAngle) / activeScenario.maxDrift) * 25, 0, 25);
+  const trimScore = clamp(((35 - trimGap) / 35) * 25, 0, 25);
+  const scenarioScore = Math.round(pointScore + speedScore + driftScore + trimScore);
+
+  const scenarioResult =
+    scenarioScore >= 85
+      ? "Mükemmel: senaryo hedefi yakalandı."
+      : scenarioScore >= 65
+        ? "İyi: trim ve hız gelişiyor."
+        : scenarioScore >= 40
+          ? "Orta: açı, trim veya drift düzeltilmeli."
+          : "Eğitim modu: hedefe yaklaşmak için ayar yap.";
+
   return (
     <main className="min-h-screen bg-[#020617] px-4 py-8 text-white md:px-6 md:py-10">
       <style>{`
@@ -339,127 +439,65 @@ export default function SailingSimulator() {
           LIVE TRAINING ENGINE ACTIVE
         </div>
 
-        <div className="mt-8 overflow-hidden rounded-3xl border border-cyan-300/20 bg-gradient-to-br from-sky-950 via-slate-950 to-cyan-950 shadow-[0_0_70px_rgba(34,211,238,0.16)]">
-          <div className="grid gap-0 lg:grid-cols-[1.25fr_0.75fr]">
-            <div className="relative min-h-[420px] overflow-hidden bg-[radial-gradient(circle_at_50%_35%,rgba(56,189,248,0.32),rgba(2,6,23,0.96)_58%)] p-5 md:p-8">
-              <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-cyan-950/70 to-transparent" />
-              <div className="relative z-10">
-                <p className="text-xs font-bold tracking-[0.35em] text-cyan-200">
-                  SAIL TRIM TRAINING MODE
-                </p>
-                <h2 className="mt-3 text-3xl font-black text-white md:text-5xl">
-                  What Is Sail Trim?
-                </h2>
-                <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300 md:text-base">
-                  Yelken trimi; apparent rüzgâra göre yelken açısını ayarlayarak temiz akış,
-                  daha fazla hız ve daha az yatma elde etmektir.
-                </p>
-              </div>
-
-              <svg viewBox="0 0 760 420" className="relative z-10 mt-4 h-auto w-full">
-                <defs>
-                  <filter id="trimGlow">
-                    <feGaussianBlur stdDeviation="4" result="blur" />
-                    <feMerge>
-                      <feMergeNode in="blur" />
-                      <feMergeNode in="SourceGraphic" />
-                    </feMerge>
-                  </filter>
-                  <linearGradient id="trainingSea" x1="0" x2="1">
-                    <stop offset="0%" stopColor="#0284c7" stopOpacity="0.26" />
-                    <stop offset="100%" stopColor="#22d3ee" stopOpacity="0.08" />
-                  </linearGradient>
-                </defs>
-
-                <rect x="0" y="300" width="760" height="120" fill="url(#trainingSea)" />
-                <path d="M0 318 C80 292 150 346 230 318 C320 284 410 348 500 318 C600 290 680 340 760 316" fill="none" stroke="#7dd3fc" strokeWidth="3" opacity="0.45" />
-                <path d="M0 352 C90 330 150 378 230 352 C315 325 420 382 510 352 C610 328 690 370 760 350" fill="none" stroke="#bae6fd" strokeWidth="2" opacity="0.32" />
-
-                <g transform="translate(390 225)">
-                  <path d="M0 -160 C68 -70 78 72 0 150 C-78 72 -68 -70 0 -160 Z" fill="rgba(255,255,255,0.86)" stroke="#e0f2fe" strokeWidth="5" filter="url(#trimGlow)" />
-                  <path d="M0 -132 C40 -60 48 58 0 118 C-48 58 -40 -60 0 -132 Z" fill="rgba(15,23,42,0.16)" />
-                  <line x1="0" y1="-160" x2="0" y2="155" stroke="#0f172a" strokeWidth="4" opacity="0.45" />
-                  <path d="M0 -72 C86 -50 96 42 8 100 Z" fill="rgba(34,211,238,0.68)" stroke="#67e8f9" strokeWidth="4" filter="url(#trimGlow)" />
-                  <path d="M0 -72 C-68 -48 -72 42 -8 92 Z" fill="rgba(255,255,255,0.55)" stroke="#e2e8f0" strokeWidth="4" />
-                </g>
-
-                <g opacity="0.8">
-                  <path d="M110 100 C205 62 282 114 350 86 C438 48 510 92 638 66" fill="none" stroke="#60a5fa" strokeWidth="6" strokeLinecap="round" />
-                  <path d="M110 145 C220 112 288 162 370 132 C455 98 545 145 650 112" fill="none" stroke="#93c5fd" strokeWidth="5" strokeLinecap="round" />
-                  <path d="M110 190 C215 158 300 208 386 178 C470 145 560 190 650 160" fill="none" stroke="#60a5fa" strokeWidth="5" strokeLinecap="round" />
-                  <polygon points="98,100 138,78 132,124" fill="#facc15" />
-                  <text x="54" y="82" fill="#fde68a" fontSize="18" fontWeight="900">APPARENT WIND</text>
-                </g>
-
-                <g transform="translate(42 250)">
-                  <circle cx="52" cy="52" r="48" fill="rgba(14,165,233,0.18)" stroke="#7dd3fc" />
-                  <path d="M52 18 L78 92 L52 78 L26 92 Z" fill="#e2e8f0" />
-                  <text x="52" y="126" textAnchor="middle" fill="#e0f2fe" fontSize="15" fontWeight="800">Wind Angle</text>
-                </g>
-
-                <g transform="translate(605 86)">
-                  <text x="0" y="0" fill="#bbf7d0" fontSize="20" fontWeight="900">✓ Increase Speed</text>
-                  <text x="0" y="36" fill="#bbf7d0" fontSize="20" fontWeight="900">✓ Smooth Airflow</text>
-                  <text x="0" y="72" fill="#bbf7d0" fontSize="20" fontWeight="900">✓ Reduce Heel</text>
-                </g>
-
-                <g transform="translate(70 352)">
-                  <rect x="0" y="0" width="176" height="54" rx="16" fill="rgba(15,23,42,0.74)" stroke="rgba(255,255,255,0.12)" />
-                  <text x="88" y="22" textAnchor="middle" fill="#fecaca" fontSize="16" fontWeight="900">TOO LOOSE</text>
-                  <text x="88" y="42" textAnchor="middle" fill="#fca5a5" fontSize="12" fontWeight="700">Luffing</text>
-                </g>
-
-                <g transform="translate(292 352)">
-                  <rect x="0" y="0" width="176" height="54" rx="16" fill="rgba(15,23,42,0.74)" stroke="rgba(255,255,255,0.12)" />
-                  <text x="88" y="22" textAnchor="middle" fill="#fde68a" fontSize="16" fontWeight="900">TOO TIGHT</text>
-                  <text x="88" y="42" textAnchor="middle" fill="#facc15" fontSize="12" fontWeight="700">Stalling</text>
-                </g>
-
-                <g transform="translate(514 352)">
-                  <rect x="0" y="0" width="176" height="54" rx="16" fill="rgba(15,23,42,0.74)" stroke="rgba(34,197,94,0.36)" />
-                  <text x="88" y="22" textAnchor="middle" fill="#bbf7d0" fontSize="16" fontWeight="900">JUST RIGHT</text>
-                  <text x="88" y="42" textAnchor="middle" fill="#86efac" fontSize="12" fontWeight="700">Drawing Well</text>
-                </g>
-              </svg>
-            </div>
-
-            <div className="border-t border-white/10 bg-black/25 p-5 md:p-8 lg:border-l lg:border-t-0">
-              <p className="text-xs font-bold tracking-[0.3em] text-cyan-300">
-                LIVE STATUS
+        <div className="mt-8 rounded-3xl border border-cyan-300/20 bg-cyan-300/[0.08] p-4 shadow-[0_0_45px_rgba(34,211,238,0.12)] backdrop-blur-xl md:p-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-xs tracking-[0.25em] text-cyan-200">SCENARIO ENGINE</p>
+              <h2 className="mt-2 text-2xl font-black text-white">{activeScenario.title}</h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
+                {activeScenario.subtitle}
               </p>
-
-              <div className="mt-5 space-y-3">
-                <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-4">
-                  <p className="text-xs text-slate-400">Trim Durumu</p>
-                  <p className="mt-1 text-2xl font-black text-white">
-                    {data.sailPressure < 30
-                      ? "Too Loose / Zayıf Akış"
-                      : data.sailPressure > 70
-                        ? "Just Right / Temiz Akış"
-                        : "Adjusting / İnce Ayar"}
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-4">
-                    <p className="text-xs text-slate-400">Apparent</p>
-                    <p className="mt-1 text-lg font-black text-cyan-100">
-                      {data.apparentWind}° / {data.apparentWindSpeed} kn
-                    </p>
-                  </div>
-                  <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-4">
-                    <p className="text-xs text-slate-400">Ideal Trim</p>
-                    <p className="mt-1 text-lg font-black text-cyan-100">
-                      {data.idealTrim.toFixed(0)}°
-                    </p>
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-4 text-sm leading-6 text-cyan-50">
-                  {data.aiInstructor}
-                </div>
-              </div>
+              <p className="mt-2 text-sm font-semibold text-cyan-100">
+                Eğitmen hedefi: {activeScenario.coaching}
+              </p>
             </div>
+
+            <div className="rounded-2xl border border-white/10 bg-black/25 p-4 text-center lg:min-w-[220px]">
+              <p className="text-xs text-slate-400">Training Score</p>
+              <p className="mt-1 text-4xl font-black text-cyan-200">{scenarioScore}</p>
+              <p className="mt-1 text-xs text-slate-300">{scenarioResult}</p>
+            </div>
+          </div>
+
+          <div className="mt-5 grid gap-3 md:grid-cols-4">
+            {TRAINING_SCENARIOS.map((scenario, index) => (
+              <button
+                key={scenario.id}
+                type="button"
+                onClick={() => setScenarioIndex(index)}
+                className={`rounded-2xl border px-4 py-3 text-left text-xs font-bold transition ${
+                  index === scenarioIndex
+                    ? "border-cyan-300 bg-cyan-300 text-slate-950"
+                    : "border-white/10 bg-white/10 text-white hover:bg-white/15"
+                }`}
+              >
+                {scenario.title}
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-4">
+            <Metric label="Hedef seyir" value={activeScenario.targetPoint} />
+            <Metric label="Hedef hız" value={`${activeScenario.minSpeed.toFixed(1)}+ knot`} />
+            <Metric label="Maks drift" value={`${activeScenario.maxDrift.toFixed(1)}°`} />
+            <Metric label="Trim farkı" value={`${trimGap.toFixed(0)}°`} />
+          </div>
+
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+            <button
+              type="button"
+              onClick={applyScenario}
+              className="rounded-2xl border border-cyan-300 bg-cyan-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-cyan-200"
+            >
+              Senaryoyu Yükle
+            </button>
+            <button
+              type="button"
+              onClick={nextScenario}
+              className="rounded-2xl border border-white/10 bg-white/10 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/15"
+            >
+              Sonraki Senaryo
+            </button>
           </div>
         </div>
 
