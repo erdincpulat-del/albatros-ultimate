@@ -9,7 +9,6 @@ type SliderProps = {
   value: number;
   setValue: (value: number) => void;
   max: number;
-  suffix?: string;
 };
 
 function clamp(value: number, min: number, max: number) {
@@ -58,13 +57,83 @@ function pointOfSail(relative: number) {
   return "Pupa";
 }
 
+
+type TrainingScenario = {
+  id: string;
+  title: string;
+  subtitle: string;
+  wind: number;
+  heading: number;
+  sail: number;
+  targetPoint: string;
+  minPressure: number;
+  maxDrift: number;
+  tip: string;
+  success: string;
+};
+
+const TRAINING_SCENARIOS: TrainingScenario[] = [
+  {
+    id: "close-reach-trim",
+    title: "Senaryo 1 · Dar Apaz Trim Kontrolü",
+    subtitle: "Amaç: apparent rüzgârı okuyup yelkeni temiz akışa yaklaştırmak.",
+    wind: 75,
+    heading: 35,
+    sail: 18,
+    targetPoint: "Dar Apaz",
+    minPressure: 48,
+    maxDrift: 6,
+    tip: "Yelkeni çok kapatma. Basıncı artırırken drift değerini kontrol altında tut.",
+    success: "Dar apazda temiz akış yakalandı. Trim ve tekne açısı dengeli.",
+  },
+  {
+    id: "beam-reach-power",
+    title: "Senaryo 2 · Apazda Güç Üretimi",
+    subtitle: "Amaç: tekneyi hızlandırırken aşırı yan kaymayı önlemek.",
+    wind: 110,
+    heading: 30,
+    sail: 32,
+    targetPoint: "Apaz",
+    minPressure: 55,
+    maxDrift: 7,
+    tip: "Apazda güç yüksektir. Hız artarken side force ve drift değerlerini izle.",
+    success: "Apazda güç dengesi kuruldu. Hız iyi, kontrol korunuyor.",
+  },
+  {
+    id: "broad-reach-control",
+    title: "Senaryo 3 · Geniş Apaz Kontrolü",
+    subtitle: "Amaç: yelkeni fazla boşlamadan stabil hız korumak.",
+    wind: 145,
+    heading: 20,
+    sail: 48,
+    targetPoint: "Geniş Apaz",
+    minPressure: 45,
+    maxDrift: 8,
+    tip: "Geniş apazda yelken daha açık çalışır. Basınç düşerse trim açısını geri topla.",
+    success: "Geniş apazda stabil seyir kuruldu. Tekne akıştan kopmadan hızlanıyor.",
+  },
+  {
+    id: "no-go-recovery",
+    title: "Senaryo 4 · No-Go Zone Kurtarma",
+    subtitle: "Amaç: rüzgâra fazla yaklaşınca tekneyi tekrar yürütmek.",
+    wind: 35,
+    heading: 30,
+    sail: 12,
+    targetPoint: "Orsa",
+    minPressure: 30,
+    maxDrift: 7,
+    tip: "No-Go Zone'a girersen tekne güç kaybeder. Baş aç ve yelkeni yeniden akışa sok.",
+    success: "No-Go bölgesinden çıktın. Tekne yeniden güç almaya başladı.",
+  },
+];
+
 export default function SailingSimulator() {
   const [trueWind, setTrueWind] = useState(135);
   const [targetHeading, setTargetHeading] = useState(30);
   const [sail, setSail] = useState(16);
-  const [fairlead, setFairlead] = useState(50);
   const [autoPilot, setAutoPilot] = useState(false);
   const [showLearning, setShowLearning] = useState(true);
+  const [scenarioIndex, setScenarioIndex] = useState(0);
 
   const [currentHeading, setCurrentHeading] = useState(30);
   const [boatSpeed, setBoatSpeed] = useState(0);
@@ -234,27 +303,6 @@ export default function SailingSimulator() {
     const efficiency = clamp(Math.round(driveForce), 0, 100);
     const sailAlpha = clamp(0.35 + (sailPressure / 100) * 0.65, 0.35, 1);
 
-    const fairleadBalance = (fairlead - 50) / 50;
-    const upperFlow = clamp(trimQuality + fairleadBalance * 0.28 - trimError / 140, 0, 1);
-    const lowerFlow = clamp(trimQuality - fairleadBalance * 0.28 - trimError / 140, 0, 1);
-    const flowBalance = Math.abs(upperFlow - lowerFlow);
-
-    const flowQuality =
-      noGo || sailPressure < 28
-        ? "stall"
-        : flowBalance > 0.34
-          ? "imbalanced"
-          : sailPressure > 62
-            ? "clean"
-            : "transition";
-
-    const fairleadAdvice =
-      upperFlow < lowerFlow - 0.18
-        ? "Fairlead biraz ileri: üst akış zayıf."
-        : lowerFlow < upperFlow - 0.18
-          ? "Fairlead biraz geri: alt akış zayıf."
-          : "Fairlead dengeli: üst ve alt akış birlikte çalışıyor.";
-
     const message =
       noGo
         ? "No-Go Zone: rüzgâra fazla yakınsın."
@@ -294,14 +342,9 @@ export default function SailingSimulator() {
       recommendedHeading,
       message,
       aiInstructor,
-      fairleadAdvice,
-      upperFlow,
-      lowerFlow,
-      flowBalance,
-      flowQuality,
       point: pointOfSail(apparentRelative),
     };
-  }, [trueWind, currentHeading, sail, fairlead, boatSpeed, driftAngle]);
+  }, [trueWind, currentHeading, sail, boatSpeed, driftAngle]);
 
   const mainSailPath =
     data.sailPressure >= 75
@@ -309,27 +352,6 @@ export default function SailingSimulator() {
       : data.sailPressure >= 45
         ? "M250 210 C345 230 350 322 262 358 Z"
         : "M250 210 C315 238 328 305 262 346 Z";
-
-  const apparentRelativeSafe = Math.max(0, data.apparentRelative);
-
-  const realisticSailAngle =
-    apparentRelativeSafe < 40
-      ? 12
-      : apparentRelativeSafe < 90
-        ? apparentRelativeSafe * 0.6
-        : apparentRelativeSafe * 0.75;
-
-  const finalSailAngle = realisticSailAngle + (sail - realisticSailAngle) * 0.4;
-  const jibSheetAngle = -finalSailAngle / 2 + (fairlead - 50) * 0.16;
-
-  const flowColor =
-    data.flowQuality === "clean"
-      ? "#22c55e"
-      : data.flowQuality === "transition"
-        ? "#facc15"
-        : data.flowQuality === "imbalanced"
-          ? "#fb923c"
-          : "#ef4444";
 
   const waveOffset =
     Math.sin(wavePhase * 0.8) * 2.5 +
@@ -340,6 +362,35 @@ export default function SailingSimulator() {
   const rollOffset = Math.sin(wavePhase * 1.35) * 1.4;
   const realisticHeel = data.heel + rollOffset + driftAngle * 0.18;
   const bowLift = clamp(boatSpeed / 8, 0, 1) * -3 + pitchOffset;
+
+  const activeScenario = TRAINING_SCENARIOS[scenarioIndex];
+  const scenarioPointScore = data.point === activeScenario.targetPoint ? 35 : 0;
+  const scenarioPressureScore = clamp((data.sailPressure / activeScenario.minPressure) * 35, 0, 35);
+  const scenarioDriftScore = clamp((activeScenario.maxDrift - driftAngle + 2) * 10, 0, 30);
+  const scenarioScore = Math.round(scenarioPointScore + scenarioPressureScore + scenarioDriftScore);
+  const scenarioPassed =
+    data.point === activeScenario.targetPoint &&
+    data.sailPressure >= activeScenario.minPressure &&
+    driftAngle <= activeScenario.maxDrift;
+
+  const applyScenario = (scenario: TrainingScenario) => {
+    setTrueWind(scenario.wind);
+    setTargetHeading(scenario.heading);
+    setCurrentHeading(scenario.heading);
+    setSail(scenario.sail);
+    setAutoPilot(false);
+    headingVelocityRef.current = 0;
+    velocityRef.current = { x: 0, y: 0 };
+    setBoatSpeed(0);
+    setMovementAngle(scenario.heading);
+    setDriftAngle(0);
+  };
+
+  const nextScenario = () => {
+    const nextIndex = (scenarioIndex + 1) % TRAINING_SCENARIOS.length;
+    setScenarioIndex(nextIndex);
+    applyScenario(TRAINING_SCENARIOS[nextIndex]);
+  };
 
   return (
     <main className="min-h-screen bg-[#020617] px-4 py-8 text-white md:px-6 md:py-10">
@@ -388,15 +439,69 @@ export default function SailingSimulator() {
           LIVE TRAINING ENGINE ACTIVE
         </div>
 
+        <div className="mt-6 rounded-3xl border border-cyan-300/20 bg-cyan-300/[0.08] p-4 shadow-[0_0_45px_rgba(34,211,238,0.12)] md:p-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-xs font-bold tracking-[0.25em] text-cyan-200">
+                SCENARIO ENGINE
+              </p>
+              <h2 className="mt-2 text-xl font-black text-white md:text-2xl">
+                {activeScenario.title}
+              </h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
+                {activeScenario.subtitle}
+              </p>
+              <p className="mt-2 text-sm font-semibold text-cyan-100">
+                Hedef: {activeScenario.targetPoint} · Minimum basınç: {activeScenario.minPressure}% · Maksimum drift: {activeScenario.maxDrift}°
+              </p>
+            </div>
+
+            <div className="grid min-w-[220px] gap-2 rounded-2xl border border-white/10 bg-black/25 p-4 text-sm">
+              <div className="flex justify-between gap-4">
+                <span className="text-slate-400">Skor</span>
+                <span className="font-black text-white">{scenarioScore}/100</span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-white/10">
+                <div
+                  className="h-full rounded-full bg-cyan-300 transition-all"
+                  style={{ width: `${scenarioScore}%` }}
+                />
+              </div>
+              <span className={scenarioPassed ? "font-bold text-green-300" : "font-bold text-yellow-300"}>
+                {scenarioPassed ? "Görev başarılı" : "Görev devam ediyor"}
+              </span>
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto_auto] md:items-center">
+            <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm leading-6 text-slate-200">
+              {scenarioPassed ? activeScenario.success : activeScenario.tip}
+            </div>
+            <button
+              type="button"
+              onClick={() => applyScenario(activeScenario)}
+              className="rounded-2xl border border-white/10 bg-white/10 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/15"
+            >
+              Senaryoyu Kur
+            </button>
+            <button
+              type="button"
+              onClick={nextScenario}
+              className="rounded-2xl border border-cyan-300 bg-cyan-300 px-5 py-3 text-sm font-bold text-slate-950 transition hover:bg-cyan-200"
+            >
+              Sonraki Senaryo
+            </button>
+          </div>
+        </div>
+
         <div className="mt-8 grid grid-cols-1 gap-5">
           <div className="rounded-3xl border border-white/10 bg-white/[0.06] p-4 backdrop-blur-xl md:p-5">
             <h2 className="mb-5 text-xl font-bold">Kontroller</h2>
 
-            <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-5 md:grid-cols-3">
               <Slider label="True Wind" value={trueWind} setValue={setTrueWind} max={360} />
               <Slider label="Hedef Tekne Yönü" value={targetHeading} setValue={setTargetHeading} max={360} />
-              <Slider label="Ana Yelken" value={sail} setValue={setSail} max={90} />
-              <Slider label="Jib Fairlead" value={fairlead} setValue={setFairlead} max={100} suffix="%" />
+              <Slider label="Yelken" value={sail} setValue={setSail} max={90} />
             </div>
 
             <div className="mt-5 grid gap-3 md:grid-cols-3">
@@ -426,8 +531,10 @@ export default function SailingSimulator() {
             </div>
 
             <div className="mt-4 rounded-2xl border border-white/10 bg-black/25 p-4 text-sm leading-6 text-slate-200">
-              {data.aiInstructor}
-              <div className="mt-2 text-cyan-200">{data.fairleadAdvice}</div>
+              <p>{data.aiInstructor}</p>
+              <p className="mt-2 font-semibold text-cyan-200">
+                Scenario Coach: {scenarioPassed ? activeScenario.success : activeScenario.tip}
+              </p>
             </div>
           </div>
 
@@ -503,19 +610,6 @@ export default function SailingSimulator() {
                   <circle className="wind-dot" cx="405" cy="245" r="2" fill="#67e8f9" />
                 </g>
 
-                <g transform={`rotate(${data.apparentWind} 250 250)`} opacity="0.42">
-                  {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
-                    <path
-                      key={`airflow-${i}`}
-                      d={`M95 ${105 + i * 38} C180 ${95 + i * 38 + Math.sin(wavePhase + i) * 8} 320 ${112 + i * 38 - Math.sin(wavePhase + i) * 8} 410 ${105 + i * 38}`}
-                      fill="none"
-                      stroke="#60a5fa"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                    />
-                  ))}
-                </g>
-
                 <g transform={`rotate(${movementAngle} 250 250)`} opacity="0.8">
                   <line x1="250" y1="250" x2="250" y2="390" stroke="#facc15" strokeWidth="2" strokeDasharray="6 8" />
                   <text x="250" y="410" textAnchor="middle" fill="#fde68a" fontSize="12" fontWeight="800">TRACK</text>
@@ -539,44 +633,12 @@ export default function SailingSimulator() {
                   <line x1="250" y1="148" x2="250" y2="358" stroke="#0f172a" strokeWidth="3" opacity="0.55" />
                   <ellipse cx="250" cy="215" rx="22" ry="42" fill="#0f172a" opacity="0.22" />
 
-                  <g transform={`rotate(${finalSailAngle} 250 210)`}>
+                  <g transform={`rotate(${sail} 250 210)`}>
                     <path className="sail-pulse" d={mainSailPath} fill={`rgba(34,211,238,${data.sailAlpha})`} stroke="#a5f3fc" strokeWidth="3" filter="url(#glow)" />
-                    {[0, 1, 2, 3, 4].map((i) => (
-                      <line
-                        key={`main-telltale-${i}`}
-                        x1={252}
-                        y1={225 + i * 22}
-                        x2={252 + (data.flowQuality === "clean" ? 22 : data.flowQuality === "transition" ? 12 : data.flowQuality === "imbalanced" ? 4 : -8)}
-                        y2={225 + i * 22 + (data.flowQuality === "stall" ? Math.sin(wavePhase * 9 + i) * 5 : 0)}
-                        stroke={flowColor}
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        opacity="0.95"
-                      />
-                    ))}
                   </g>
 
-                  <g transform={`rotate(${jibSheetAngle} 250 210)`}>
+                  <g transform={`rotate(${-sail / 2} 250 210)`}>
                     <path d="M250 210 C178 235 170 310 240 350 Z" fill="rgba(255,255,255,.58)" stroke="rgba(255,255,255,.88)" strokeWidth="3" />
-                    {[0, 1, 2, 3].map((i) => (
-                      <line
-                        key={`jib-telltale-${i}`}
-                        x1={232}
-                        y1={235 + i * 24}
-                        x2={232 - (data.lowerFlow > 0.65 ? 18 : data.lowerFlow > 0.35 ? 9 : -5)}
-                        y2={235 + i * 24 + (data.lowerFlow < 0.35 ? Math.sin(wavePhase * 8 + i) * 5 : 0)}
-                        stroke={data.lowerFlow > 0.65 ? "#22c55e" : data.lowerFlow > 0.35 ? "#facc15" : "#ef4444"}
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        opacity="0.9"
-                      />
-                    ))}
-                  </g>
-
-                  <g opacity="0.9">
-                    <line x1="210" y1="344" x2="290" y2="344" stroke="rgba(125,211,252,.45)" strokeWidth="3" strokeLinecap="round" />
-                    <circle cx={210 + fairlead * 0.8} cy="344" r="6" fill="#22d3ee" stroke="#cffafe" strokeWidth="2" />
-                    <text x="250" y="366" textAnchor="middle" fill="#a5f3fc" fontSize="10" fontWeight="800">JIB FAIRLEAD</text>
                   </g>
                 </g>
 
@@ -598,9 +660,6 @@ export default function SailingSimulator() {
                       </p>
                       <p className="mt-2 text-[11px] leading-4 text-cyan-200 opacity-90">
                         {data.aiInstructor}
-                      </p>
-                      <p className="mt-2 text-[11px] font-bold" style={{ color: flowColor }}>
-                        Flow: {data.flowQuality.toUpperCase()} | Üst {(data.upperFlow * 100).toFixed(0)}% / Alt {(data.lowerFlow * 100).toFixed(0)}%
                       </p>
                     </div>
                   </foreignObject>
@@ -626,14 +685,13 @@ export default function SailingSimulator() {
               <Metric label="Apparent wind" value={`${data.apparentWind}° / ${data.apparentWindSpeed} kn`} />
               <Metric label="İdeal trim" value={`${data.idealTrim.toFixed(0)}°`} />
               <Metric label="Sail pressure" value={`${data.sailPressure.toFixed(0)}%`} />
-              <Metric label="Flow quality" value={`${data.flowQuality.toUpperCase()}`} />
-              <Metric label="Fairlead" value={`${fairlead}%`} />
-              <Metric label="Upper / Lower" value={`${(data.upperFlow * 100).toFixed(0)}% / ${(data.lowerFlow * 100).toFixed(0)}%`} />
               <Metric label="Drive force" value={`${data.driveForce.toFixed(0)}%`} />
               <Metric label="Side force" value={`${data.sideForce.toFixed(0)}%`} />
               <Metric label="Physics speed" value={`${boatSpeed.toFixed(1)} knot`} />
               <Metric label="Movement track" value={`${movementAngle}°`} />
               <Metric label="Drift angle" value={`${driftAngle.toFixed(1)}°`} />
+              <Metric label="Scenario score" value={`${scenarioScore}/100`} />
+              <Metric label="Scenario target" value={activeScenario.targetPoint} />
             </div>
 
             <div className="mt-5 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-4 text-sm font-bold text-cyan-50">
@@ -643,45 +701,19 @@ export default function SailingSimulator() {
             </div>
           </div>
         </div>
-
-        <div className="mt-10 rounded-3xl border border-cyan-300/20 bg-[#020b16] p-6 text-center shadow-[0_0_55px_rgba(34,211,238,0.12)] md:p-8">
-          <p className="text-xs tracking-[0.35em] text-cyan-300">YYE TRAINING CTA</p>
-          <h2 className="mt-3 text-2xl font-black text-white md:text-3xl">
-            Bu simülatörde gördüğün trim ve fairlead ayarını gerçek denizde uygulamak ister misin?
-          </h2>
-          <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-slate-300 md:text-base">
-            YYE eğitimlerinde rüzgâr, yelken trim, fairlead, drift ve manevra kararlarını gerçek rota üzerinde çalışıyoruz.
-          </p>
-          <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
-            <a
-              href="https://wa.me/905324873813?text=Merhaba%20YYE%20Sailing%20Simulator%20%C3%BCzerinden%20geldim.%20Yelken%20trim%20ve%20YYE%20e%C4%9Fitimi%20hakk%C4%B1nda%20bilgi%20almak%20istiyorum."
-              target="_blank"
-              rel="noreferrer"
-              className="rounded-2xl bg-cyan-300 px-6 py-3 text-sm font-black text-slate-950 transition hover:bg-cyan-200"
-            >
-              WhatsApp’tan Eğitim Bilgisi Al
-            </a>
-            <a
-              href="/"
-              className="rounded-2xl border border-white/15 bg-white/10 px-6 py-3 text-sm font-bold text-white transition hover:bg-white/15"
-            >
-              Ana Sayfaya Dön
-            </a>
-          </div>
-        </div>
       </section>
     </main>
   );
 }
 
-function Slider({ label, value, setValue, max, suffix = "°" }: SliderProps) {
+function Slider({ label, value, setValue, max }: SliderProps) {
   const updateValue = (rawValue: string) => setValue(Number(rawValue));
 
   return (
     <div className="relative z-20 mb-5 last:mb-0">
       <div className="mb-2 flex justify-between text-sm">
         <span className="text-slate-300">{label}</span>
-        <span className="font-bold text-cyan-200">{value}{suffix}</span>
+        <span className="font-bold text-cyan-200">{value}°</span>
       </div>
 
       <input
