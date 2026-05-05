@@ -541,6 +541,43 @@ export default function SailingSimulator() {
             </div>
           </div>
         </div>
+
+
+        <div className="mt-16 text-center">
+          <div className="mx-auto max-w-2xl rounded-3xl border border-cyan-300/20 bg-[#020b16] p-8 shadow-[0_0_50px_rgba(34,211,238,0.14)]">
+            <p className="text-xs tracking-[0.28em] text-cyan-300">
+              ALBATROS SAILING TRAINING
+            </p>
+
+            <h2 className="mt-3 text-2xl font-black text-white md:text-3xl">
+              Gerçek Denizde Uygulamak İster misin?
+            </h2>
+
+            <p className="mt-3 text-sm leading-6 text-slate-400 md:text-base">
+              Bu simülatörde öğrendiğin her şey, gerçek eğitimlerimizin temelidir.
+              Şimdi bunu denizde deneyimleme zamanı.
+            </p>
+
+            <div className="mt-7 flex flex-col justify-center gap-4 md:flex-row">
+              <a
+                href="https://wa.me/905324873813?text=Merhaba%20YYE%20Sailing%20Simulator%20%C3%BCzerinden%20geldim.%20E%C4%9Fitim%20programlar%C4%B1%20hakk%C4%B1nda%20bilgi%20almak%20istiyorum."
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-2xl bg-cyan-300 px-7 py-3 text-sm font-black text-slate-950 transition hover:bg-cyan-200"
+              >
+                WhatsApp’tan Bilgi Al
+              </a>
+
+              <a
+                href="/programlar"
+                className="rounded-2xl border border-white/15 px-7 py-3 text-sm font-bold text-white transition hover:bg-white/10"
+              >
+                Eğitim Programlarını İncele
+              </a>
+            </div>
+          </div>
+        </div>
+
       </section>
     </main>
   );
