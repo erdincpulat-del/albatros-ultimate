@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+
 import SiteHeader from "@/components/layout/SiteHeader";
 import SiteFooter from "@/components/layout/SiteFooter";
 import FloatingContact from "@/components/layout/FloatingContact";
@@ -7,7 +8,7 @@ import FloatingContact from "@/components/layout/FloatingContact";
 export const metadata: Metadata = {
   title: "Albatros Sailing | YYE Platform",
   description:
-    "Albatros Sailing YYE eğitim platformu, yelkenli simülasyon, akademi ve premium denizcilik deneyimi.",
+    "Albatros Sailing YYE eğitim platformu, bridge simülasyon sistemi ve denizcilik eğitim modülleri.",
 };
 
 export default function RootLayout({
@@ -17,10 +18,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="tr">
-      <body>
-        <div className="min-h-screen bg-slate-950 text-white">
+      <body className="bg-slate-950 text-white">
+        <div className="min-h-screen overflow-x-hidden">
           <SiteHeader />
-          {children}
+
+          <main>{children}</main>
+
           <SiteFooter />
           <FloatingContact />
         </div>

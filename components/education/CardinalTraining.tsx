@@ -2,260 +2,401 @@
 
 import { useMemo, useState } from "react";
 
-type CardinalType = "north" | "south" | "east" | "west";
+type Cardinal = "north" | "east" | "south" | "west";
 
 type Scenario = {
-  id: number;
-  type: CardinalType;
+  level: number;
   title: string;
-  safeSide: string;
-  light: string;
-  explanation: string;
+  target: Cardinal;
+  question: string;
+  hint: string;
 };
 
-const scenarios: Scenario[] = [
-  {
-    id: 1,
-    type: "north",
+const DATA: Record<Cardinal, {
+  title: string;
+  pass: string;
+  light: string;
+  desc: string;
+}> = {
+  north: {
     title: "North Cardinal",
-    safeSide: "Kuzeyinden geç",
-    light: "Q veya VQ sürekli",
-    explanation: "North Cardinal, güvenli suyun işaretin kuzeyinde olduğunu gösterir.",
+    pass: "Kuzeyinden geç",
+    light: "Q / VQ continuous",
+    desc: "Güvenli su işaretin kuzeyindedir. Tehlike güneyde kalır.",
   },
-  {
-    id: 2,
-    type: "east",
+  east: {
     title: "East Cardinal",
-    safeSide: "Doğusundan geç",
-    light: "Q(3) veya VQ(3)",
-    explanation: "East Cardinal, güvenli suyun işaretin doğusunda olduğunu gösterir.",
+    pass: "Doğusundan geç",
+    light: "Q(3) / VQ(3)",
+    desc: "Güvenli su işaretin doğusundadır. Tehlike batıda kalır.",
   },
-  {
-    id: 3,
-    type: "south",
+  south: {
     title: "South Cardinal",
-    safeSide: "Güneyinden geç",
-    light: "Q(6)+LFl veya VQ(6)+LFl",
-    explanation: "South Cardinal, güvenli suyun işaretin güneyinde olduğunu gösterir.",
+    pass: "Güneyinden geç",
+    light: "Q(6)+LFl / VQ(6)+LFl",
+    desc: "Güvenli su işaretin güneyindedir. Tehlike kuzeyde kalır.",
+  },
+  west: {
+    title: "West Cardinal",
+    pass: "Batısından geç",
+    light: "Q(9) / VQ(9)",
+    desc: "Güvenli su işaretin batısındadır. Tehlike doğuda kalır.",
+  },
+};
+
+const SCENARIOS: Scenario[] = [
+  {
+    level: 1,
+    title: "Level 1 · Day Recognition",
+    target: "north",
+    question: "Tehlike güneyde kalacaksa hangi işaretin tarafından geçersin?",
+    hint: "North Cardinal güvenli suyun kuzeyde olduğunu gösterir.",
   },
   {
-    id: 4,
-    type: "west",
-    title: "West Cardinal",
-    safeSide: "Batısından geç",
-    light: "Q(9) veya VQ(9)",
-    explanation: "West Cardinal, güvenli suyun işaretin batısında olduğunu gösterir.",
+    level: 2,
+    title: "Level 2 · Night Light",
+    target: "east",
+    question: "Gece Q(3) / VQ(3) ışık karakteri gördün. Güvenli geçiş nereden?",
+    hint: "East Cardinal üçlü çakar.",
+  },
+  {
+    level: 3,
+    title: "Level 3 · Long Flash",
+    target: "south",
+    question: "Q(6)+LFl gördün. Hangi cardinal işarettir?",
+    hint: "South Cardinal altı kısa + bir uzun çakar.",
+  },
+  {
+    level: 4,
+    title: "Level 4 · Route Decision",
+    target: "west",
+    question: "Q(9) ışık karakteri var. Güvenli su hangi tarafta?",
+    hint: "West Cardinal dokuzlu çakar.",
   },
 ];
 
-const options = ["Kuzeyinden geç", "Doğusundan geç", "Güneyinden geç", "Batısından geç"];
-
 export default function CardinalTraining() {
-  const [index, setIndex] = useState(0);
-  const [selected, setSelected] = useState<string | null>(null);
+  const [mode, setMode] = useState<"day" | "night">("day");
+  const [step, setStep] = useState(0);
+  const [answer, setAnswer] = useState<Cardinal | null>(null);
   const [score, setScore] = useState(0);
 
-  const scenario = scenarios[index];
-  const isCorrect = selected === scenario.safeSide;
+  const scenario = SCENARIOS[step];
+  const progress = ((step + 1) / SCENARIOS.length) * 100;
 
-  const buoy = useMemo(() => getBuoyVisual(scenario.type), [scenario.type]);
+  const result = useMemo(() => {
+    if (!answer) return null;
+    return answer === scenario.target;
+  }, [answer, scenario.target]);
 
-  function answer(option: string) {
-    if (selected) return;
-    setSelected(option);
-    if (option === scenario.safeSide) setScore((s) => s + 1);
+  function choose(type: Cardinal) {
+    if (answer) return;
+    setAnswer(type);
+    if (type === scenario.target) setScore((s) => s + 1);
   }
 
   function next() {
-    setSelected(null);
-    setIndex((i) => (i + 1) % scenarios.length);
+    setAnswer(null);
+    setStep((s) => (s + 1) % SCENARIOS.length);
   }
 
   return (
-    <main className="min-h-screen bg-[#020617] px-4 py-8 text-white md:px-6">
-      <section className="mx-auto max-w-6xl">
-        <p className="text-xs tracking-[0.35em] text-cyan-300">ALBATROS SAILING</p>
+    <main className="min-h-screen bg-[#020617] px-4 py-8 text-white">
+      <style>{`
+        @keyframes seaMove {
+          0% { transform: translateX(-40px); opacity: .18; }
+          50% { opacity: .4; }
+          100% { transform: translateX(40px); opacity: .18; }
+        }
 
-        <h1 className="mt-3 text-3xl font-black md:text-6xl">
-          Cardinal Mark Training Engine
-        </h1>
+        @keyframes flashNorth {
+          0%,100% { opacity:.25; }
+          50% { opacity:1; }
+        }
 
-        <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-300 md:text-base">
-          Şamandırayı gör, güvenli tarafı seç, ışık karakterini öğren.
-          Sertifika bağlantısı yoktur; bu sayfa tamamen bağımsız eğitim modülüdür.
-        </p>
+        @keyframes flashEast {
+          0%,100% { opacity:.15; }
+          8%,16%,24% { opacity:1; }
+          32% { opacity:.15; }
+        }
 
-        <div className="mt-8 grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
-          <div className="rounded-3xl border border-cyan-300/20 bg-[#06111f] p-4 shadow-[0_0_70px_rgba(34,211,238,0.16)]">
-            <div className="relative flex min-h-[520px] items-center justify-center overflow-hidden rounded-[24px] border border-white/10 bg-[#020b16]">
-              <div className="absolute inset-0 opacity-40">
-                {[...Array(8)].map((_, i) => (
-                  <div
-                    key={i}
-                    className="absolute h-px w-full bg-cyan-300/30"
-                    style={{ top: `${12 + i * 11}%` }}
-                  />
-                ))}
-              </div>
+        @keyframes flashSouth {
+          0%,100% { opacity:.15; }
+          7%,14%,21%,28%,35%,42% { opacity:1; }
+          62% { opacity:1; }
+        }
 
-              <div className="absolute left-6 top-6 rounded-2xl border border-white/10 bg-black/40 p-4 backdrop-blur">
-                <p className="text-xs text-slate-400">Scenario</p>
-                <p className="font-bold text-cyan-100">{scenario.title}</p>
-                <p className="mt-1 text-xs text-slate-300">Light: {scenario.light}</p>
-              </div>
+        @keyframes flashWest {
+          0%,100% { opacity:.15; }
+          6%,12%,18%,24%,30%,36%,42%,48%,54% { opacity:1; }
+        }
 
-              <svg viewBox="0 0 500 500" className="relative z-10 h-auto w-full max-w-[560px]">
-                <circle cx="250" cy="250" r="205" fill="none" stroke="rgba(125,211,252,.2)" />
-                <circle cx="250" cy="250" r="145" fill="none" stroke="rgba(125,211,252,.14)" />
+        .sea-line { animation: seaMove 6s ease-in-out infinite alternate; }
+        .flash-north { animation: flashNorth 1s infinite; }
+        .flash-east { animation: flashEast 2s infinite; }
+        .flash-south { animation: flashSouth 3s infinite; }
+        .flash-west { animation: flashWest 3.5s infinite; }
+      `}</style>
 
-                <text x="250" y="38" textAnchor="middle" fill="#a5f3fc" fontSize="16" fontWeight="800">N</text>
-                <text x="250" y="476" textAnchor="middle" fill="#a5f3fc" fontSize="16" fontWeight="800">S</text>
-                <text x="470" y="255" textAnchor="middle" fill="#a5f3fc" fontSize="16" fontWeight="800">E</text>
-                <text x="30" y="255" textAnchor="middle" fill="#a5f3fc" fontSize="16" fontWeight="800">W</text>
+      <section className="mx-auto max-w-7xl">
+        <header className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-xs font-black tracking-[0.35em] text-cyan-300">
+              ALBATROS SAILING
+            </p>
+            <h1 className="mt-2 text-3xl font-black md:text-5xl">
+              Cardinal Level Training Engine
+            </h1>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">
+              Kardinal işaretleri; gündüz sembolü, gece ışık karakteri ve rota kararıyla öğren.
+            </p>
+          </div>
 
-                <SafeWater type={scenario.type} />
+          <button
+            type="button"
+            onClick={() => setMode(mode === "day" ? "night" : "day")}
+            className="rounded-2xl border border-cyan-300/30 bg-cyan-300/10 px-5 py-3 text-sm font-black text-cyan-100"
+          >
+            {mode === "day" ? "Gece Moduna Geç" : "Gündüz Moduna Geç"}
+          </button>
+        </header>
 
-                <g transform="translate(250 250)">
-                  <rect x="-28" y="-86" width="56" height="122" rx="18" fill={buoy.bodyTop} />
-                  <rect x="-28" y="-25" width="56" height="61" rx="14" fill={buoy.bodyBottom} />
-                  <line x1="0" y1="36" x2="0" y2="112" stroke="#94a3b8" strokeWidth="5" />
-                  <polygon points={buoy.topTriangle} fill="#f8fafc" />
-                  <polygon points={buoy.bottomTriangle} fill="#f8fafc" />
-                  <circle cx="0" cy="-4" r="8" fill="#020617" />
-                </g>
+        <div className="mb-5 rounded-3xl border border-white/10 bg-white/[0.05] p-5">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-xs tracking-[0.25em] text-cyan-300">
+                {scenario.title}
+              </p>
+              <h2 className="mt-2 text-2xl font-black">{scenario.question}</h2>
+              <p className="mt-2 text-sm text-slate-300">{scenario.hint}</p>
+            </div>
 
-                <path
-                  d="M250 425 C230 390 270 390 250 425 Z"
-                  fill="#22d3ee"
-                  opacity="0.18"
-                />
-
-                <g transform="translate(250 420)">
-                  <path
-                    d="M0 -28 C20 0 20 42 0 72 C-20 42 -20 0 0 -28 Z"
-                    fill="#e2e8f0"
-                    stroke="#ffffff"
-                    strokeWidth="3"
-                  />
-                  <text x="0" y="100" textAnchor="middle" fill="#e0f2fe" fontSize="12">
-                    YOUR BOAT
-                  </text>
-                </g>
-              </svg>
+            <div className="text-right">
+              <p className="text-xs text-slate-400">Score</p>
+              <p className="text-3xl font-black text-cyan-200">
+                {score}/{SCENARIOS.length}
+              </p>
             </div>
           </div>
 
-          <div className="rounded-3xl border border-white/10 bg-white/[0.06] p-5 backdrop-blur-xl">
-            <div className="flex items-center justify-between gap-4">
-              <h2 className="text-xl font-bold">Karar Ver</h2>
-              <div className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs text-cyan-100">
-                Skor {score}/{scenarios.length}
-              </div>
-            </div>
+          <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/10">
+            <div
+              className="h-full rounded-full bg-cyan-300 transition-all duration-500"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        </div>
 
-            <p className="mt-4 text-sm leading-6 text-slate-300">
-              Bu cardinal işareti hangi taraftan emniyetli geçilir?
-            </p>
-
-            <div className="mt-5 grid gap-3">
-              {options.map((option) => {
-                const active = selected === option;
-                const correct = option === scenario.safeSide;
-
-                return (
-                  <button
-                    key={option}
-                    type="button"
-                    onClick={() => answer(option)}
-                    className={`rounded-2xl border px-4 py-4 text-left text-sm font-bold transition ${
-                      selected
-                        ? correct
-                          ? "border-green-400 bg-green-400/15 text-green-100"
-                          : active
-                            ? "border-red-400 bg-red-400/15 text-red-100"
-                            : "border-white/10 bg-black/20 text-slate-400"
-                        : "border-white/10 bg-black/20 text-white hover:border-cyan-300/40 hover:bg-cyan-300/10"
-                    }`}
-                  >
-                    {option}
-                  </button>
-                );
-              })}
-            </div>
-
-            {selected && (
+        <div
+          className={`relative overflow-hidden rounded-[34px] border border-white/10 p-5 md:p-8 ${
+            mode === "night"
+              ? "bg-[#010611]"
+              : "bg-gradient-to-b from-sky-200 via-sky-500 to-cyan-950"
+          }`}
+        >
+          <div className="absolute inset-0 opacity-40">
+            {[...Array(12)].map((_, i) => (
               <div
-                className={`mt-5 rounded-2xl border p-4 text-sm leading-6 ${
-                  isCorrect
-                    ? "border-green-400/30 bg-green-400/10 text-green-100"
-                    : "border-red-400/30 bg-red-400/10 text-red-100"
-                }`}
-              >
-                <p className="font-black">{isCorrect ? "Doğru karar." : "Yanlış karar."}</p>
-                <p className="mt-1">{scenario.explanation}</p>
-                <p className="mt-2 text-slate-200">Doğru geçiş: {scenario.safeSide}</p>
+                key={i}
+                className="sea-line absolute h-px w-full bg-cyan-100/60"
+                style={{ top: `${8 + i * 8}%` }}
+              />
+            ))}
+          </div>
+
+          <div className="relative grid min-h-[680px] grid-cols-3 grid-rows-3 items-center justify-items-center gap-4">
+            <div />
+            <CardinalCard type="north" mode={mode} answer={answer} target={scenario.target} choose={choose} />
+            <div />
+
+            <CardinalCard type="west" mode={mode} answer={answer} target={scenario.target} choose={choose} />
+
+            <div className="flex h-44 w-44 rotate-45 items-center justify-center border border-yellow-200/50 bg-yellow-300 text-black shadow-[0_0_90px_rgba(250,204,21,.45)] md:h-56 md:w-56">
+              <div className="-rotate-45 text-center">
+                <p className="text-3xl font-black md:text-4xl">DANGER</p>
+                <p className="mt-1 text-xs font-bold md:text-sm">Tehlike Alanı</p>
               </div>
-            )}
+            </div>
+
+            <CardinalCard type="east" mode={mode} answer={answer} target={scenario.target} choose={choose} />
+
+            <div />
+            <CardinalCard type="south" mode={mode} answer={answer} target={scenario.target} choose={choose} />
+            <div />
+          </div>
+        </div>
+
+        {answer && (
+          <div
+            className={`mt-6 rounded-3xl border p-5 text-center ${
+              result
+                ? "border-green-300/40 bg-green-400/10"
+                : "border-red-300/40 bg-red-400/10"
+            }`}
+          >
+            <p className="text-2xl font-black">
+              {result ? "✅ Doğru karar" : "❌ Yanlış taraf"}
+            </p>
+            <p className="mt-2 text-sm text-slate-300">
+              Doğru cevap: <b>{DATA[scenario.target].pass}</b> — {DATA[scenario.target].desc}
+            </p>
 
             <button
               type="button"
               onClick={next}
-              className="mt-5 w-full rounded-2xl bg-cyan-300 px-5 py-4 text-sm font-black text-slate-950 transition hover:bg-cyan-200"
+              className="mt-4 rounded-2xl bg-cyan-300 px-6 py-3 text-sm font-black text-slate-950"
             >
-              Sonraki Senaryo
+              Sonraki Level
             </button>
-
-            <div className="mt-5 rounded-2xl border border-white/10 bg-black/25 p-4 text-xs leading-5 text-slate-300">
-              North: sürekli hızlı çakar. East: 3 çakar. South: 6 çakar + uzun çakar.
-              West: 9 çakar.
-            </div>
           </div>
-        </div>
+        )}
       </section>
     </main>
   );
 }
 
-function SafeWater({ type }: { type: CardinalType }) {
-  const common = "rgba(34,211,238,.13)";
-  if (type === "north") return <path d="M250 250 L105 65 A210 210 0 0 1 395 65 Z" fill={common} />;
-  if (type === "south") return <path d="M250 250 L395 435 A210 210 0 0 1 105 435 Z" fill={common} />;
-  if (type === "east") return <path d="M250 250 L435 105 A210 210 0 0 1 435 395 Z" fill={common} />;
-  return <path d="M250 250 L65 395 A210 210 0 0 1 65 105 Z" fill={common} />;
+function CardinalCard({
+  type,
+  mode,
+  answer,
+  target,
+  choose,
+}: {
+  type: Cardinal;
+  mode: "day" | "night";
+  answer: Cardinal | null;
+  target: Cardinal;
+  choose: (type: Cardinal) => void;
+}) {
+  const data = DATA[type];
+
+  const isAnswered = answer !== null;
+  const isCorrectTarget = type === target;
+  const isChosen = answer === type;
+
+  return (
+    <button
+      type="button"
+      onClick={() => choose(type)}
+      className={`w-full max-w-[220px] rounded-3xl border p-4 text-center transition ${
+        isAnswered && isCorrectTarget
+          ? "border-green-300 bg-green-400/20 shadow-[0_0_45px_rgba(74,222,128,.35)]"
+          : isChosen
+            ? "border-red-300 bg-red-400/20 shadow-[0_0_35px_rgba(248,113,113,.35)]"
+            : "border-white/10 bg-black/45 hover:border-cyan-300/40 hover:bg-cyan-300/10"
+      }`}
+    >
+      <p className="text-xs font-black text-cyan-100">{data.light}</p>
+
+      <div className="mt-3 flex justify-center">
+        <Buoy type={type} mode={mode} />
+      </div>
+
+      <p className="mt-3 text-lg font-black text-white">{data.title}</p>
+      <p className="mt-1 text-sm font-bold text-cyan-100">{data.pass}</p>
+      <p className="mt-2 text-xs leading-5 text-slate-300">{data.desc}</p>
+    </button>
+  );
 }
 
-function getBuoyVisual(type: CardinalType) {
+function Buoy({ type, mode }: { type: Cardinal; mode: "day" | "night" }) {
+  const flashClass =
+    type === "north"
+      ? "flash-north"
+      : type === "east"
+      ? "flash-east"
+      : type === "south"
+      ? "flash-south"
+      : "flash-west";
+
+  return (
+    <svg viewBox="0 0 120 220" className="h-40 w-24 md:h-44 md:w-28">
+      {mode === "night" && (
+        <circle className={flashClass} cx="60" cy="26" r="22" fill="#fde68a" />
+      )}
+
+      <TopMarks type={type} />
+
+      <g transform="translate(60 130)">
+        <rect x="-22" y="-50" width="44" height="100" rx="7" fill="#111827" />
+        <BodyPattern type={type} />
+        <rect x="-32" y="46" width="64" height="17" rx="8" fill="#111827" />
+        <line x1="0" y1="63" x2="0" y2="90" stroke="#cbd5e1" strokeWidth="5" />
+      </g>
+    </svg>
+  );
+}
+
+function TopMarks({ type }: { type: Cardinal }) {
   if (type === "north") {
-    return {
-      bodyTop: "#facc15",
-      bodyBottom: "#020617",
-      topTriangle: "0,-135 -20,-100 20,-100",
-      bottomTriangle: "0,-100 -20,-65 20,-65",
-    };
+    return (
+      <g fill="black">
+        <polygon points="60,12 42,46 78,46" />
+        <polygon points="60,48 42,82 78,82" />
+      </g>
+    );
   }
 
   if (type === "south") {
-    return {
-      bodyTop: "#020617",
-      bodyBottom: "#facc15",
-      topTriangle: "0,-65 -20,-100 20,-100",
-      bottomTriangle: "0,-100 -20,-135 20,-135",
-    };
+    return (
+      <g fill="black">
+        <polygon points="42,18 78,18 60,52" />
+        <polygon points="42,54 78,54 60,88" />
+      </g>
+    );
   }
 
   if (type === "east") {
-    return {
-      bodyTop: "#020617",
-      bodyBottom: "#facc15",
-      topTriangle: "0,-135 -20,-100 20,-100",
-      bottomTriangle: "0,-65 -20,-100 20,-100",
-    };
+    return (
+      <g fill="black">
+        <polygon points="60,12 42,46 78,46" />
+        <polygon points="42,54 78,54 60,88" />
+      </g>
+    );
   }
 
-  return {
-    bodyTop: "#facc15",
-    bodyBottom: "#020617",
-    topTriangle: "0,-65 -20,-100 20,-100",
-    bottomTriangle: "0,-100 -20,-135 20,-135",
-  };
+  return (
+    <g fill="black">
+      <polygon points="42,18 78,18 60,52" />
+      <polygon points="60,54 42,88 78,88" />
+    </g>
+  );
+}
+
+function BodyPattern({ type }: { type: Cardinal }) {
+  if (type === "north") {
+    return (
+      <>
+        <rect x="-22" y="-50" width="44" height="50" fill="#111827" />
+        <rect x="-22" y="0" width="44" height="50" fill="#facc15" />
+      </>
+    );
+  }
+
+  if (type === "south") {
+    return (
+      <>
+        <rect x="-22" y="-50" width="44" height="50" fill="#facc15" />
+        <rect x="-22" y="0" width="44" height="50" fill="#111827" />
+      </>
+    );
+  }
+
+  if (type === "east") {
+    return (
+      <>
+        <rect x="-22" y="-50" width="44" height="33" fill="#111827" />
+        <rect x="-22" y="-17" width="44" height="34" fill="#facc15" />
+        <rect x="-22" y="17" width="44" height="33" fill="#111827" />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <rect x="-22" y="-50" width="44" height="33" fill="#facc15" />
+      <rect x="-22" y="-17" width="44" height="34" fill="#111827" />
+      <rect x="-22" y="17" width="44" height="33" fill="#facc15" />
+    </>
+  );
 }
