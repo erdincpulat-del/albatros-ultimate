@@ -1,15 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { MapPinned, Radar, Route, TriangleAlert } from "lucide-react";
 
-type Waypoint = {
-  id: string;
-  name: string;
-  x: number;
-  y: number;
-};
-
-const waypoints: Waypoint[] = [
+const waypoints = [
   { id: "wp1", name: "WP-01", x: 18, y: 72 },
   { id: "wp2", name: "WP-02", x: 36, y: 52 },
   { id: "wp3", name: "WP-03", x: 58, y: 42 },
@@ -29,7 +23,7 @@ export default function NavigationMapPanel() {
   return (
     <section className="mx-auto max-w-7xl px-5 py-12 md:px-8">
       <div className="rounded-[2rem] border border-cyan-300/20 bg-slate-900/80 p-6 shadow-2xl shadow-cyan-950/30 md:p-8">
-        <div className="mb-8 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.25em] text-cyan-300">
               Visual Navigation Engine
@@ -38,8 +32,8 @@ export default function NavigationMapPanel() {
               Canlı Harita ve Rota Eğitim Paneli
             </h2>
             <p className="mt-3 max-w-3xl leading-7 text-slate-300">
-              Bu panel; waypoint, rota hattı, DR tahmini, tehlike alanı ve
-              navigator karar mantığını görsel olarak öğretmek için tasarlandı.
+              Waypoint, rota hattı, DR tahmini, risk alanı ve navigator karar
+              mantığını görsel olarak öğretir.
             </p>
           </div>
 
@@ -65,7 +59,7 @@ export default function NavigationMapPanel() {
             <div className="absolute inset-0 bg-[linear-gradient(rgba(34,211,238,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(34,211,238,0.08)_1px,transparent_1px)] bg-[size:40px_40px]" />
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_40%,rgba(34,211,238,0.18),transparent_30%),radial-gradient(circle_at_80%_20%,rgba(59,130,246,0.18),transparent_28%)]" />
 
-            <div className="absolute left-[8%] top-[18%] h-[42%] w-[24%] rounded-[50%] border border-emerald-300/30 bg-emerald-300/10 blur-[0.2px]" />
+            <div className="absolute left-[8%] top-[18%] h-[42%] w-[24%] rounded-[50%] border border-emerald-300/30 bg-emerald-300/10" />
             <div className="absolute bottom-[8%] right-[8%] h-[34%] w-[30%] rounded-[48%] border border-emerald-300/25 bg-emerald-300/10" />
 
             {showDanger && (
@@ -96,8 +90,18 @@ export default function NavigationMapPanel() {
                 />
               )}
 
-              <circle cx={selectedWaypoint.x} cy={selectedWaypoint.y} r="3" fill="rgba(34,211,238,0.25)" />
-              <circle cx={selectedWaypoint.x} cy={selectedWaypoint.y} r="1.2" fill="rgb(103,232,249)" />
+              <circle
+                cx={selectedWaypoint.x}
+                cy={selectedWaypoint.y}
+                r="3"
+                fill="rgba(34,211,238,0.25)"
+              />
+              <circle
+                cx={selectedWaypoint.x}
+                cy={selectedWaypoint.y}
+                r="1.2"
+                fill="rgb(103,232,249)"
+              />
             </svg>
 
             {waypoints.map((wp) => (
@@ -126,7 +130,8 @@ export default function NavigationMapPanel() {
           </div>
 
           <div className="rounded-[1.5rem] border border-white/10 bg-slate-950/60 p-6">
-            <h3 className="text-2xl font-black text-cyan-100">
+            <h3 className="flex items-center gap-2 text-2xl font-black text-cyan-100">
+              <MapPinned className="h-6 w-6" />
               Navigator Yorumu
             </h3>
 
@@ -139,18 +144,18 @@ export default function NavigationMapPanel() {
               </p>
 
               <p>
-                Mavi kesikli çizgi planlanan rota hattını gösterir. Sarı kesikli
-                çizgi DR tahmini track olarak okunur.
+                <Route className="mr-2 inline h-4 w-4 text-cyan-300" />
+                Mavi kesikli çizgi planlanan rota hattıdır.
               </p>
 
               <p>
-                Eğer DR hattı planlanan rotadan uzaklaşırsa navigator; akıntı,
-                rüzgâr, dümen hatası veya hız hesabını yeniden değerlendirir.
+                <Radar className="mr-2 inline h-4 w-4 text-amber-300" />
+                Sarı kesikli çizgi DR tahmini track olarak okunur.
               </p>
 
               <p className="rounded-2xl border border-red-300/20 bg-red-300/10 p-4 text-red-100">
-                Kırmızı alan, sığ su / tehlike bölgesidir. Profesyonel rota,
-                bu alanın emniyet payıyla dışından geçirilmelidir.
+                <TriangleAlert className="mr-2 inline h-4 w-4" />
+                Kırmızı alan sığ su / tehlike bölgesidir.
               </p>
             </div>
 
