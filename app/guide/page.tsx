@@ -1,8 +1,12 @@
 import Link from "next/link";
 import {
   Anchor,
+  ArrowRight,
+  Binoculars,
   BookOpen,
+  Brain,
   Calculator,
+  CheckCircle2,
   Compass,
   Gauge,
   MapPinned,
@@ -17,10 +21,6 @@ import {
   Siren,
   Waves,
   Wind,
-  Brain,
-  Binoculars,
-  ArrowRight,
-  CheckCircle2,
 } from "lucide-react";
 
 const levels = [
@@ -89,62 +89,38 @@ export default function GuidePage() {
     <main className="min-h-screen bg-[#020817] text-white">
       <section className="relative overflow-hidden">
         <div
-          className="absolute inset-0 opacity-80"
+          className="absolute inset-0 opacity-90"
           style={{
-            backgroundImage: "url('/images/navigation/hero-chart.jpg')",
-            backgroundSize: "cover",
-            backgroundPosition: "center top",
+            backgroundImage: "url('/images/navigation/hero-premium.jpg')",
+            backgroundSize: "82%",
+            backgroundRepeat: "no-repeat",
+            backgroundPosition: "center -30px",
           }}
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-[#020817] via-[#020817]/78 to-[#020817]/30" />
-        <div className="absolute inset-0 bg-gradient-to-b from-[#020817]/30 via-transparent to-[#020817]" />
 
-        <div className="relative mx-auto max-w-7xl px-5 py-8 md:px-8">
-          <header className="flex items-center justify-between gap-6">
-            <Link href="/" className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full border border-cyan-300/30 bg-cyan-300/10">
-                <Anchor className="h-6 w-6 text-cyan-300" />
-              </div>
-              <div>
-                <div className="text-xl font-black tracking-wider">ALBATROS</div>
-                <div className="text-sm font-black uppercase tracking-[0.2em] text-cyan-300">
-                  Sailing Academy
-                </div>
-              </div>
-            </Link>
+        <div className="absolute inset-0 bg-gradient-to-r from-[#020817] via-[#020817]/75 to-[#020817]/25" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#020817]/20 via-transparent to-[#020817]" />
+        <div className="absolute inset-0 bg-black/35" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.12),transparent_58%)]" />
+        <div className="absolute inset-0 opacity-[0.08] bg-[linear-gradient(rgba(34,211,238,0.18)_1px,transparent_1px),linear-gradient(90deg,rgba(34,211,238,0.18)_1px,transparent_1px)] bg-[size:120px_120px]" />
 
-            <nav className="hidden items-center gap-8 text-sm font-black md:flex">
-              <Link href="/">Ana Sayfa</Link>
-              <Link href="/simulator">Simülatör</Link>
-              <Link href="/guide" className="text-cyan-300 underline underline-offset-8">
-                Eğitim Modülleri
-              </Link>
-              <Link href="/guide/navigation">Kütüphane</Link>
-              <Link href="/guide/navigation/formulas">Araçlar</Link>
-            </nav>
-
-            <Link
-              href="https://wa.me/"
-              className="rounded-2xl border border-cyan-300/30 bg-cyan-300/10 px-5 py-3 text-sm font-black text-white"
-            >
-              WhatsApp
-            </Link>
-          </header>
-
-          <div className="mt-20 max-w-3xl">
+        <div className="relative mx-auto max-w-7xl px-5 pt-24 pb-14 md:px-8 md:pt-32">
+          <div className="relative z-10 mt-24 max-w-4xl">
             <p className="text-sm font-black uppercase tracking-[0.35em] text-cyan-300">
               Albatros Sailing Academy
             </p>
 
-            <h1 className="mt-4 text-6xl font-black leading-[0.92] tracking-tight md:text-7xl">
+            <h1 className="mt-4 text-6xl font-black leading-[0.88] tracking-[-0.04em] md:text-8xl">
               NAVIGATION
               <br />
               ACADEMY
               <br />
-              <span className="text-cyan-300">PRO</span>
+              <span className="text-cyan-300 drop-shadow-[0_0_28px_rgba(34,211,238,0.45)]">
+                PRO
+              </span>
             </h1>
 
-            <p className="mt-6 max-w-xl text-xl font-black leading-8">
+            <p className="mt-7 max-w-xl text-xl font-black leading-8">
               Haritayı oku. Rotayı çiz. Mevkini bul. Güvenle ilerle.
             </p>
 
@@ -154,7 +130,7 @@ export default function GuidePage() {
               premium eğitim modülü.
             </p>
 
-            <div className="mt-7 max-w-md rounded-2xl border border-cyan-300/30 bg-cyan-300/10 p-5">
+            <div className="mt-8 max-w-xl rounded-2xl border border-cyan-300/30 bg-cyan-300/10 p-5 shadow-[0_0_50px_rgba(34,211,238,0.12)] backdrop-blur-xl">
               <div className="flex gap-4">
                 <Anchor className="h-7 w-7 shrink-0 text-cyan-300" />
                 <p className="text-sm font-semibold leading-7 text-slate-200">
@@ -165,16 +141,16 @@ export default function GuidePage() {
             </div>
           </div>
 
-          <div className="mt-8 grid overflow-hidden rounded-2xl border border-cyan-300/25 bg-slate-950/70 md:grid-cols-4">
+          <div className="mt-12 grid overflow-hidden rounded-3xl border border-cyan-300/30 bg-gradient-to-br from-[#0b2236]/80 via-[#071827]/80 to-[#030b14]/90 shadow-[0_0_70px_rgba(34,211,238,0.14)] backdrop-blur-xl md:grid-cols-4">
             {[
               ["7", "Ana Modül", BookOpen],
               ["25+", "Eğitim Konusu", Compass],
               ["40+", "Uygulama Örneği", Route],
               ["100%", "Seyir Emniyeti Odaklı", Shield],
             ].map(([value, label, Icon]) => (
-              <div key={label as string} className="border-cyan-300/15 p-6 md:border-r">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-300/25 bg-cyan-300/10">
+              <div key={label as string} className="border-cyan-300/20 p-6 md:border-r last:border-r-0">
+                <div className="flex items-center gap-5">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-300/30 bg-cyan-300/10 shadow-[0_0_30px_rgba(34,211,238,0.10)]">
                     <Icon className="h-7 w-7 text-cyan-300" />
                   </div>
                   <div>
@@ -188,53 +164,60 @@ export default function GuidePage() {
             ))}
           </div>
 
-          <section className="mt-8 space-y-4 pb-16">
+          <section className="mt-8 space-y-5 pb-16">
             {levels.map((level) => (
               <div
                 key={level.yye}
-                className="grid gap-4 rounded-2xl border border-cyan-300/20 bg-slate-950/70 p-4 shadow-2xl shadow-cyan-950/20 lg:grid-cols-[250px_1fr]"
+                className="grid gap-5 rounded-3xl border border-cyan-300/30 bg-gradient-to-br from-[#081827]/85 via-[#061421]/80 to-[#020817]/90 p-5 shadow-[0_0_70px_rgba(34,211,238,0.10)] backdrop-blur-xl lg:grid-cols-[285px_1fr]"
               >
-                <div className="flex items-center gap-5 border-cyan-300/10 lg:border-r lg:pr-5">
-                  <div className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-5 py-4 text-center">
+                <div className="flex items-center gap-5 border-cyan-300/15 lg:border-r lg:pr-5">
+                  <div className="rounded-3xl border border-cyan-300/30 bg-cyan-300/10 px-5 py-4 text-center shadow-[0_0_40px_rgba(34,211,238,0.12)]">
                     <div className="text-sm font-black uppercase tracking-wider text-cyan-300">
                       YYE
                     </div>
-                    <div className="text-6xl font-black text-cyan-300">
+                    <div className="text-7xl font-black leading-none text-cyan-300 drop-shadow-[0_0_18px_rgba(34,211,238,0.35)]">
                       {level.yye}
                     </div>
                   </div>
 
                   <div>
                     <h2 className="text-xl font-black">{level.title}</h2>
-                    <p className="mt-3 text-sm leading-6 text-slate-300">
+                    <p className="mt-3 text-sm leading-7 text-slate-300">
                       {level.desc}
                     </p>
                   </div>
                 </div>
 
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                   {level.modules.map((module) => {
                     const Icon = module.icon;
 
                     return (
                       <Link
-  key={`${level.yye}-${module.title}-${module.href}`}
-  href={module.href}
-  className="group rounded-2xl border border-cyan-300/15 bg-[#061421]/80 p-4 transition hover:-translate-y-1 hover:border-cyan-300/50 hover:bg-cyan-300/10"
->
-                        <Icon className="h-9 w-9 text-cyan-300" />
+                        key={`${level.yye}-${module.title}-${module.href}`}
+                        href={module.href}
+                        className="group relative min-h-[210px] overflow-hidden rounded-2xl border border-cyan-300/30 bg-gradient-to-br from-[#0b2236]/95 via-[#081520]/95 to-[#041018]/95 p-5 shadow-[0_0_30px_rgba(34,211,238,0.08)] transition duration-500 hover:-translate-y-1 hover:border-cyan-300/60 hover:bg-cyan-300/10 hover:shadow-[0_0_40px_rgba(34,211,238,0.18)]"
+                      >
+                        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.18),transparent_52%)] opacity-0 transition duration-500 group-hover:opacity-100" />
+                        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300/60 to-transparent opacity-60" />
 
-                        <h3 className="mt-4 font-black text-white">
-                          {module.title}
-                        </h3>
+                        <div className="relative z-10">
+                          <div className="flex h-13 w-13 items-center justify-center rounded-2xl border border-cyan-300/30 bg-cyan-300/10 shadow-[0_0_24px_rgba(34,211,238,0.12)]">
+                            <Icon className="h-9 w-9 text-cyan-300 drop-shadow-[0_0_12px_rgba(34,211,238,0.28)]" />
+                          </div>
 
-                        <p className="mt-2 min-h-[44px] text-xs leading-5 text-slate-300">
-                          {module.desc}
-                        </p>
+                          <h3 className="mt-5 font-black text-white">
+                            {module.title}
+                          </h3>
 
-                        <div className="mt-4 flex items-center gap-2 text-sm font-black text-cyan-300">
-                          Başla
-                          <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
+                          <p className="mt-2 min-h-[48px] text-xs leading-5 text-slate-300">
+                            {module.desc}
+                          </p>
+
+                          <div className="mt-5 flex items-center gap-2 text-sm font-black text-cyan-300">
+                            Başla
+                            <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
+                          </div>
                         </div>
                       </Link>
                     );
@@ -244,10 +227,10 @@ export default function GuidePage() {
             ))}
           </section>
 
-          <section className="mb-12 rounded-2xl border border-cyan-300/20 bg-slate-950/70 p-8">
+          <section className="mb-12 rounded-3xl border border-cyan-300/30 bg-gradient-to-br from-[#081827]/85 via-[#061421]/80 to-[#020817]/90 p-8 shadow-[0_0_70px_rgba(34,211,238,0.12)] backdrop-blur-xl">
             <div className="grid gap-6 md:grid-cols-4">
               <div className="flex items-center gap-4 md:col-span-1">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full border border-cyan-300/30 bg-cyan-300/10">
+                <div className="flex h-16 w-16 items-center justify-center rounded-full border border-cyan-300/30 bg-cyan-300/10 shadow-[0_0_35px_rgba(34,211,238,0.12)]">
                   <Anchor className="h-8 w-8 text-cyan-300" />
                 </div>
                 <p className="text-sm leading-7 text-slate-300">
