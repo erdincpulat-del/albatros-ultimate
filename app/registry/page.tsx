@@ -1,8 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useLanguage } from "@/contexts/LanguageProvider";
-import { getMessages } from "@/messages";
 
 type RegistryCertificate = {
   id: string;
@@ -17,8 +15,7 @@ type RegistryCertificate = {
 };
 
 export default function RegistryPage() {
-  const { locale } = useLanguage();
-  const t = useMemo(() => getMessages(locale), [locale]);
+const locale = "tr"; 
 
   const ui = {
     badge:
