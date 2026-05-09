@@ -22,17 +22,46 @@ import {
   Waves,
   Wind,
 } from "lucide-react";
-
 const levels = [
   {
     yye: "1",
     title: "TEMEL DENİZCİLİK",
     desc: "Denizcilik temelleri ve seyir için gerekli başlangıç bilgileri.",
     modules: [
-      { title: "Buoyage", href: "/guide/buoyage", icon: Waves, desc: "Şamandıralar ve deniz işaretleri sistemi." },
-      { title: "Cardinal İşaretler", href: "/guide/cardinals", icon: Shield, desc: "Kardinal şamandıralar ve güvenli geçiş." },
-      { title: "Sound Signals", href: "/guide/sound-signals", icon: Megaphone, desc: "Ses işaretleri ve manevra kuralları." },
-      { title: "Night Lights", href: "/guide/night-lights", icon: Siren, desc: "Fenerler, ışık karakterleri ve tanıma." },
+      {
+        title: "Buoyage",
+        href: "/guide/buoyage",
+        icon: Waves,
+        desc: "Şamandıralar ve deniz işaretleri sistemi.",
+      },
+
+      {
+        title: "Cardinal İşaretler",
+        href: "/guide/cardinals",
+        icon: Shield,
+        desc: "Kardinal şamandıralar ve güvenli geçiş.",
+      },
+
+      {
+        title: "Sound Signals",
+        href: "/guide/sound-signals",
+        icon: Megaphone,
+        desc: "Ses işaretleri ve manevra kuralları.",
+      },
+
+      {
+        title: "Night Lights",
+        href: "/guide/night-lights",
+        icon: Siren,
+        desc: "Fenerler, ışık karakterleri ve tanıma.",
+      },
+
+      {
+        title: "Anchoring",
+        href: "/guide/seamanship/anchoring",
+        icon: Anchor,
+        desc: "Demirleme, kaloma, dip yapısı, tarama ve bosa vurmak eğitimi.",
+      },
     ],
   },
   {
