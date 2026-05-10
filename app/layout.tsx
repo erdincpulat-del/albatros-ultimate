@@ -4,6 +4,7 @@ import "./globals.css";
 import SiteHeader from "@/components/layout/SiteHeader";
 import SiteFooter from "@/components/layout/SiteFooter";
 import FloatingContact from "@/components/layout/FloatingContact";
+import { LanguageProvider } from "@/contexts/LanguageProvider";
 
 export const metadata: Metadata = {
   title: "Albatros Sailing | YYE Platform",
@@ -19,14 +20,16 @@ export default function RootLayout({
   return (
     <html lang="tr">
       <body className="bg-slate-950 text-white">
-        <div className="min-h-screen overflow-x-hidden">
-          <SiteHeader />
+        <LanguageProvider>
+          <div className="min-h-screen overflow-x-hidden">
+            <SiteHeader />
 
-          <main>{children}</main>
+            <main>{children}</main>
 
-          <SiteFooter />
-          <FloatingContact />
-        </div>
+            <SiteFooter />
+            <FloatingContact />
+          </div>
+        </LanguageProvider>
       </body>
     </html>
   );
