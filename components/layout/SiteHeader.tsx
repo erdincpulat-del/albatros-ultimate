@@ -10,6 +10,9 @@ const navItems = [
   { label: "Eğitim Modülleri", href: "/guide" },
   { label: "Navigation Academy", href: "/guide/navigation" },
   { label: "Bridge Tools", href: "/guide/navigation/formulas" },
+
+  { label: "Registry", href: "/registry" },
+  { label: "Verify", href: "/verify" },
 ];
 
 export default function SiteHeader() {
