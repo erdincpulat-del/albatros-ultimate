@@ -13,6 +13,7 @@ const navItems = [
 
   { label: "Registry", href: "/registry" },
   { label: "Verify", href: "/verify" },
+  { label: "Admin", href: "/admin" },
 ];
 
 export default function SiteHeader() {
