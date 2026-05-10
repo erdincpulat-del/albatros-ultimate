@@ -8,7 +8,7 @@ type PageProps = {
 };
 
 export default async function CertificatePackagePage({ params }: PageProps) {
-  const { certificateId } = await params;
+ const { certificateId } = params;
 
   const certificate = await prisma.certificate.findFirst({
     where: {
