@@ -84,6 +84,7 @@ export default function SiteHeader() {
           { label: "Passage Planning", href: "/guide/navigation/passage-planning" },
           { label: "Radar", href: "/guide/navigation/radar" },
           { label: "Bridge Tools", href: "/guide/navigation/formulas" },
+          {label: "Marina Simulator",href: "/simulator/marina"},
         ],
       },
       {
