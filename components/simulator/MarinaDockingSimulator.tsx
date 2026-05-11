@@ -5,6 +5,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 type ResultState = "RUNNING" | "SUCCESS" | "COLLISION" | "FAILED";
 type ScenarioKey = "training" | "night" | "tight" | "windy";
 type CameraMode = "normal" | "cinematic";
+type MarinaKey =
+  | "classicMarina"
+  | "woodenPier"
+  | "narrowBay"
+  | "modernMarina";
+type BoatKey = "sailingYacht" | "motorYacht" | "twinEngineCatamaran";
 
 type ControlState = {
   throttle: number;
@@ -29,20 +35,55 @@ type WakePoint = {
   life: number;
 };
 
-const BOAT = {
-  length: 92,
-  width: 30,
+type Pose = {
+  x: number;
+  y: number;
+  heading: number;
 };
 
-const DEFAULT_START = {
+type ScenarioConfig = {
+  label: string;
+  description: string;
+  night: boolean;
+  windDirection: number;
+  windForce: number;
+  difficulty: string;
+  start: Pose;
+  target: Pose;
+};
+
+type MarinaConfig = {
+  label: string;
+  description: string;
+  background: string;
+  start: Pose;
+  target: Pose;
+  dockView: {
+    width: number;
+    height: number;
+  };
+};
+
+type BoatConfig = {
+  label: string;
+  description: string;
+  length: number;
+  width: number;
+  drag: number;
+  rudderPower: number;
+  bowThrusterPower: number;
+  windDriftFactor: number;
+  windYawFactor: number;
+  enginePower: number;
+  reversePower: number;
+  pivotPower: number;
+  wakeFactor: number;
+  image: string;
+};
+
+const DEFAULT_START: Pose = {
   x: 230,
   y: 440,
-  heading: 90,
-};
-
-const DEFAULT_TARGET = {
-  x: 690,
-  y: 520,
   heading: 90,
 };
 
@@ -57,27 +98,101 @@ const OBSTACLES: Obstacle[] = [
   { x: 730, y: 270, w: 12, h: 110, label: "FINGER" },
 ];
 
-const SCENARIOS: Record<
-  ScenarioKey,
-  {
-    label: string;
-    description: string;
-    night: boolean;
-    windDirection: number;
-    windForce: number;
-    difficulty: string;
+const MARINAS: Record<MarinaKey, MarinaConfig> = {
+  classicMarina: {
+    label: " Simulator Marina",
+    description: "İlk simülasyondaki klasik marina sahnesi geri eklendi.",
+    background: "/images/simulator/marina-bg.jpg",
+
     start: {
-      x: number;
-      y: number;
-      heading: number;
-    };
+      x: 240,
+      y: 520,
+      heading: 90,
+    },
+
     target: {
-      x: number;
-      y: number;
-      heading: number;
-    };
-  }
-> = {
+      x: 610,
+      y: 500,
+      heading: 0,
+    },
+    dockView: {
+      width: 50,
+      height: 175,
+    }
+  },
+
+  woodenPier: {
+    label: "Ahşap İskele / Koy",
+    description: "Sığ koy, ahşap iskele ve doğal rüzgar etkisi.",
+    background: "/images/simulator/pier-bay.jpg",
+
+    start: {
+      x: 250,
+      y: 470,
+      heading: 60,
+    },
+
+    target: {
+      x: 410,
+      y: 390,
+      heading: 0,
+    },
+    dockView: {
+      width: 90,
+      height: 150,
+    }
+  },
+
+  narrowBay: {
+    label: "Dar Koy İskelesi",
+    description:
+      "Dar koy içinde sınırlı dönüş alanı ve hassas yaklaşma.",
+
+    background: "/images/simulator/narrow-bay.jpg",
+
+    start: {
+      x: 180,
+      y: 560,
+      heading: 35,
+    },
+
+    target: {
+      x: 390,
+      y: 605,
+      heading: 150,
+    },
+    dockView: {
+      width: 90,
+      height: 170,
+    }
+  },
+
+  modernMarina: {
+    label: "Modern Marina",
+    description:
+      "Modern marina, pontonlar ve yoğun tekne trafiği.",
+
+    background: "/images/simulator/harbor-marina.jpg",
+
+    start: {
+      x: 220,
+      y: 620,
+      heading: 140,
+    },
+
+    target: {
+      x: 55,
+      y: 400,
+      heading: 50,
+    },
+    dockView: {
+      width: 10,
+      height: 145,
+    }
+  },
+};
+
+const SCENARIOS: Record<ScenarioKey, ScenarioConfig> = {
   training: {
     label: "İskele Yanaşma Eğitimi",
     description: "Geniş su alanından kontrollü iskele yaklaşması.",
@@ -86,7 +201,7 @@ const SCENARIOS: Record<
     windForce: 0.35,
     difficulty: "NORMAL",
     start: { x: 230, y: 440, heading: 90 },
-    target: { x: 690, y: 520, heading: 0 },
+    target: { x: 575, y: 455, heading: 0 },
   },
 
   night: {
@@ -97,7 +212,7 @@ const SCENARIOS: Record<
     windForce: 0.45,
     difficulty: "ADVANCED",
     start: { x: 250, y: 430, heading: 90 },
-    target: { x: 690, y: 520, heading: 90 },
+    target: { x: 575, y: 455, heading: 0 },
   },
 
   tight: {
@@ -108,7 +223,7 @@ const SCENARIOS: Record<
     windForce: 0.5,
     difficulty: "PRO",
     start: { x: 260, y: 455, heading: 85 },
-    target: { x: 705, y: 520, heading: 90 },
+    target: { x: 595, y: 455, heading: 0 },
   },
 
   windy: {
@@ -119,7 +234,63 @@ const SCENARIOS: Record<
     windForce: 1.05,
     difficulty: "HARD",
     start: { x: 220, y: 455, heading: 90 },
-    target: { x: 700, y: 520, heading: 90 },
+    target: { x: 600, y: 455, heading: 0 },
+  },
+};
+
+const BOATS: Record<BoatKey, BoatConfig> = {
+  sailingYacht: {
+    label: "Sailing Yacht",
+    description:
+      "Yelkenli yat: rüzgardan daha fazla etkilenir, daha ağır döner, eğitim zorluğu orta seviyededir.",
+    length: 92,
+    width: 30,
+    drag: 0.985,
+    rudderPower: 0.82,
+    bowThrusterPower: 1.05,
+    windDriftFactor: 1.15,
+    windYawFactor: 1.15,
+    enginePower: 0.045,
+    reversePower: 0.65,
+    pivotPower: 0,
+    wakeFactor: 1,
+    image: "/images/simulator/sailing-yacht.png",
+  },
+
+  motorYacht: {
+    label: "Motor Yacht",
+    description:
+      "Motoryat: motor tepkisi güçlü, düşük hız kontrolü daha kolay, marina manevrasında daha dengeli davranır.",
+    length: 88,
+    width: 36,
+    drag: 0.98,
+    rudderPower: 1.18,
+    bowThrusterPower: 1.35,
+    windDriftFactor: 0.85,
+    windYawFactor: 0.8,
+    enginePower: 0.058,
+    reversePower: 0.82,
+    pivotPower: 0.55,
+    wakeFactor: 1.25,
+    image: "/images/simulator/motor-yacht.png",
+  },
+
+  twinEngineCatamaran: {
+    label: "Twin Engine Catamaran",
+    description:
+      "Çift motorlu katamaran: geniş gövde, yüksek rüzgar alanı ve çift motor pivot kabiliyeti; zorluk seviyesi yüksektir.",
+    length: 90,
+    width: 50,
+    drag: 0.984,
+    rudderPower: 0.76,
+    bowThrusterPower: 1.45,
+    windDriftFactor: 1.45,
+    windYawFactor: 0.75,
+    enginePower: 0.052,
+    reversePower: 0.76,
+    pivotPower: 1.35,
+    wakeFactor: 1.4,
+    image: "/images/simulator/catamaran.png",
   },
 };
 
@@ -149,21 +320,26 @@ function pointInRect(px: number, py: number, rect: Obstacle) {
   );
 }
 
-function getBoatGeometry(x: number, y: number, heading: number) {
+function getBoatGeometry(
+  x: number,
+  y: number,
+  heading: number,
+  boatConfig: BoatConfig
+) {
   const rad = (heading * Math.PI) / 180;
   const sideRad = ((heading + 90) * Math.PI) / 180;
 
-  const bowX = x + Math.sin(rad) * BOAT.length * 0.5;
-  const bowY = y - Math.cos(rad) * BOAT.length * 0.5;
+  const bowX = x + Math.sin(rad) * boatConfig.length * 0.5;
+  const bowY = y - Math.cos(rad) * boatConfig.length * 0.5;
 
-  const sternX = x - Math.sin(rad) * BOAT.length * 0.5;
-  const sternY = y + Math.cos(rad) * BOAT.length * 0.5;
+  const sternX = x - Math.sin(rad) * boatConfig.length * 0.5;
+  const sternY = y + Math.cos(rad) * boatConfig.length * 0.5;
 
-  const portX = x - Math.sin(sideRad) * BOAT.width * 0.5;
-  const portY = y + Math.cos(sideRad) * BOAT.width * 0.5;
+  const portX = x - Math.sin(sideRad) * boatConfig.width * 0.5;
+  const portY = y + Math.cos(sideRad) * boatConfig.width * 0.5;
 
-  const starboardX = x + Math.sin(sideRad) * BOAT.width * 0.5;
-  const starboardY = y - Math.cos(sideRad) * BOAT.width * 0.5;
+  const starboardX = x + Math.sin(sideRad) * boatConfig.width * 0.5;
+  const starboardY = y - Math.cos(sideRad) * boatConfig.width * 0.5;
 
   return {
     bowX,
@@ -177,8 +353,13 @@ function getBoatGeometry(x: number, y: number, heading: number) {
   };
 }
 
-function boatHitsObstacle(x: number, y: number, heading: number) {
-  const g = getBoatGeometry(x, y, heading);
+function boatHitsObstacle(
+  x: number,
+  y: number,
+  heading: number,
+  boatConfig: BoatConfig
+) {
+  const g = getBoatGeometry(x, y, heading, boatConfig);
 
   const checkPoints = [
     { x, y },
@@ -194,6 +375,11 @@ function boatHitsObstacle(x: number, y: number, heading: number) {
 }
 
 export default function MarinaDockingSimulator() {
+  const [selectedMarina, setSelectedMarina] =
+    useState<MarinaKey>("classicMarina");
+  const [selectedBoat, setSelectedBoat] =
+    useState<BoatKey>("sailingYacht");
+
   const [x, setX] = useState(DEFAULT_START.x);
   const [y, setY] = useState(DEFAULT_START.y);
   const [heading, setHeading] = useState(DEFAULT_START.heading);
@@ -233,27 +419,30 @@ export default function MarinaDockingSimulator() {
   const wakeIdRef = useRef(0);
   const frameCountRef = useRef(0);
 
+  const activeMarina = MARINAS[selectedMarina];
+  const activeBoat = BOATS[selectedBoat];
   const activeScenario = SCENARIOS[scenario];
-  const activeTarget = activeScenario.target;
+  const activeTarget = activeMarina.target;
 
   const boatGeometry = useMemo(
-    () => getBoatGeometry(x, y, heading),
-    [x, y, heading]
+    () => getBoatGeometry(x, y, heading, activeBoat),
+    [x, y, heading, activeBoat]
   );
 
   const targetGeometry = useMemo(
-    () =>
-      getBoatGeometry(
-        activeTarget.x,
-        activeTarget.y,
-        activeTarget.heading
-      ),
-    [activeTarget.x, activeTarget.y, activeTarget.heading]
-  );
+  () =>
+    getBoatGeometry(
+      activeMarina.target.x,
+      activeMarina.target.y,
+      activeMarina.target.heading,
+      activeBoat
+    ),
+  [activeMarina, activeBoat]
+);
 
   const dockingDistance = useMemo(
-    () => distance(x, y, activeTarget.x, activeTarget.y),
-    [x, y, activeTarget.x, activeTarget.y]
+    () => distance(x, y, activeMarina.target.x, activeMarina.target.y),
+    [x, y, activeMarina.target.x, activeMarina.target.y]
   );
 
   const bowDistance = useMemo(
@@ -284,14 +473,14 @@ export default function MarinaDockingSimulator() {
   );
 
   const collisionRisk = useMemo(() => {
-    return boatHitsObstacle(x, y, heading);
-  }, [x, y, heading]);
+    return boatHitsObstacle(x, y, heading, activeBoat);
+  }, [x, y, heading, activeBoat]);
 
   const dockingStatus = useMemo(() => {
     if (result === "SUCCESS") return "SECURED ALONGSIDE";
     if (result === "COLLISION") return "COLLISION WARNING";
     if (result === "FAILED") return "FAILED APPROACH";
-    if (collisionRisk) return "COLLISION RISK";
+    if (collisionRisk && showObstacles) return "COLLISION RISK";
 
     if (
       bowDistance < 52 &&
@@ -312,6 +501,7 @@ export default function MarinaDockingSimulator() {
   }, [
     result,
     collisionRisk,
+    showObstacles,
     bowDistance,
     sternDistance,
     dockingDistance,
@@ -320,12 +510,29 @@ export default function MarinaDockingSimulator() {
   ]);
 
   const maneuverAdvice = useMemo(() => {
-    if (result === "SUCCESS") return "Yanaşma tamamlandı. Halatlar alınabilir.";
-    if (result === "COLLISION") return "Temas oluştu. Daha düşük hız ve daha erken dümen kullan.";
-    if (result === "FAILED") return "Hedef alanına hızlı girdin. Son yaklaşmada gazı kes ve akıntı/rüzgarla süzül.";
+    if (result === "SUCCESS")
+      return "Yanaşma tamamlandı. Halatlar alınabilir.";
 
-    if (collisionRisk) {
+    if (result === "COLLISION")
+      return "Temas oluştu. Daha düşük hız ve daha erken dümen kullan.";
+
+    if (result === "FAILED")
+      return "Hedef alana hızlı girdin. Son yaklaşmada gazı kes ve rüzgarla süzül.";
+
+    if (collisionRisk && showObstacles) {
       return "Çarpışma bölgesine çok yakınsın. Hızı düşür ve baş açını güvenli suya çevir.";
+    }
+
+    if (selectedBoat === "sailingYacht") {
+      return "Yelkenli yat rüzgardan daha fazla etkilenir. Hızı düşük tut, dümeni erken ve yumuşak kullan.";
+    }
+
+    if (selectedBoat === "motorYacht") {
+      return "Motoryatta motor tepkisi güçlüdür. Kısa ve küçük gaz komutlarıyla yaklaş.";
+    }
+
+    if (selectedBoat === "twinEngineCatamaran") {
+      return "Çift motorlu katamaran geniş gövdeli ve rüzgar alanı büyüktür. Küçük motor farklarıyla pivot kullan.";
     }
 
     if (Math.abs(speed) > 2.1) {
@@ -349,13 +556,15 @@ export default function MarinaDockingSimulator() {
     }
 
     if (dockingDistance < 100) {
-      return "Son yaklaşma. Çok küçük gaz, küçük dümen ve düşük hızla ilerle.";
+      return "Son yaklaşma, çok küçük gaz, küçük dümen ve düşük hızla ilerle.";
     }
 
     return "Kontrollü ilerle. Önce hızını düşük tut, sonra baş-kıç hizasını hedefe oturt.";
   }, [
     result,
     collisionRisk,
+    showObstacles,
+    selectedBoat,
     speed,
     dockingAngleError,
     dockingDistance,
@@ -437,7 +646,8 @@ export default function MarinaDockingSimulator() {
       if (resultRef.current !== "RUNNING") return;
 
       if (e.key === "ArrowUp") controlsRef.current.throttle = 1;
-      if (e.key === "ArrowDown") controlsRef.current.throttle = -0.65;
+      if (e.key === "ArrowDown")
+        controlsRef.current.throttle = -activeBoat.reversePower;
       if (e.key === "ArrowLeft") controlsRef.current.rudder = -1;
       if (e.key === "ArrowRight") controlsRef.current.rudder = 1;
       if (e.key.toLowerCase() === "a") controlsRef.current.bowThruster = -1;
@@ -474,7 +684,11 @@ export default function MarinaDockingSimulator() {
       window.removeEventListener("keydown", down);
       window.removeEventListener("keyup", up);
     };
-  }, []);
+  }, [activeBoat.reversePower]);
+
+  useEffect(() => {
+    resetSimulatorForScenario(scenario, false);
+  }, [selectedBoat]);
 
   useEffect(() => {
     let frame = 0;
@@ -485,9 +699,13 @@ export default function MarinaDockingSimulator() {
 
       if (resultRef.current === "RUNNING") {
         const scenarioDrag =
-          scenario === "tight" ? 0.982 : scenario === "windy" ? 0.981 : 0.985;
+          scenario === "tight"
+            ? activeBoat.drag - 0.003
+            : scenario === "windy"
+              ? activeBoat.drag - 0.004
+              : activeBoat.drag;
 
-        boat.speed += controls.throttle * 0.045;
+        boat.speed += controls.throttle * activeBoat.enginePower;
         boat.speed *= scenarioDrag;
 
         if (Math.abs(boat.speed) < 0.01) boat.speed = 0;
@@ -495,23 +713,42 @@ export default function MarinaDockingSimulator() {
         const windRad = (windDirection * Math.PI) / 180;
 
         const rudderFactor = Math.min(1, Math.abs(boat.speed) / 1.8);
-        const rudderTurn = controls.rudder * boat.speed * 0.82 * rudderFactor;
+        const rudderTurn =
+          controls.rudder *
+          boat.speed *
+          activeBoat.rudderPower *
+          rudderFactor;
 
         const lowSpeedFactor = clamp(1 - Math.abs(boat.speed) * 0.35, 0.25, 1);
-        const bowThrusterTurn = controls.bowThruster * 1.15 * lowSpeedFactor;
+        const bowThrusterTurn =
+          controls.bowThruster *
+          activeBoat.bowThrusterPower *
+          lowSpeedFactor;
+
+        const twinEnginePivot =
+          controls.rudder *
+          activeBoat.pivotPower *
+          lowSpeedFactor *
+          0.16;
 
         const windSideArea = Math.abs(
           Math.sin(((windDirection - boat.heading) * Math.PI) / 180)
         );
 
-        const windDriftPower = windForce * (0.11 + windSideArea * 0.12);
+        const windDriftPower =
+          windForce *
+          activeBoat.windDriftFactor *
+          (0.11 + windSideArea * 0.12);
+
         const windYaw =
           Math.sin(((windDirection - boat.heading) * Math.PI) / 180) *
           windForce *
+          activeBoat.windYawFactor *
           0.045;
 
         boat.heading += rudderTurn;
         boat.heading += bowThrusterTurn;
+        boat.heading += twinEnginePivot;
         boat.heading += windYaw;
         boat.heading = normalizeHeading(boat.heading);
 
@@ -530,9 +767,13 @@ export default function MarinaDockingSimulator() {
 
         if (frameCountRef.current % 5 === 0 && Math.abs(boat.speed) > 0.08) {
           const wakeRad = (boat.heading * Math.PI) / 180;
-          const sternX = boat.x - Math.sin(wakeRad) * BOAT.length * 0.5;
-          const sternY = boat.y + Math.cos(wakeRad) * BOAT.length * 0.5;
-          const intensity = Math.min(1, Math.abs(boat.speed) / 3.2);
+          const sternX =
+            boat.x - Math.sin(wakeRad) * activeBoat.length * 0.5;
+          const sternY =
+            boat.y + Math.cos(wakeRad) * activeBoat.length * 0.5;
+
+          const intensity =
+            Math.min(1, Math.abs(boat.speed) / 3.2) * activeBoat.wakeFactor;
 
           setWakeTrail((previous) => [
             {
@@ -562,8 +803,19 @@ export default function MarinaDockingSimulator() {
           );
         }
 
-        const hitObstacle = boatHitsObstacle(boat.x, boat.y, boat.heading);
-        const liveGeometry = getBoatGeometry(boat.x, boat.y, boat.heading);
+        const hitObstacle = boatHitsObstacle(
+          boat.x,
+          boat.y,
+          boat.heading,
+          activeBoat
+        );
+
+        const liveGeometry = getBoatGeometry(
+          boat.x,
+          boat.y,
+          boat.heading,
+          activeBoat
+        );
 
         const liveBowDistance = distance(
           liveGeometry.bowX,
@@ -584,7 +836,9 @@ export default function MarinaDockingSimulator() {
         const collisionSpeedLimit = 1.6;
 
         const isRealImpact =
-  showObstacles && hitObstacle && Math.abs(boat.speed) > collisionSpeedLimit;
+          showObstacles &&
+          hitObstacle &&
+          Math.abs(boat.speed) > collisionSpeedLimit;
 
         if (isRealImpact) {
           resultRef.current = "COLLISION";
@@ -598,16 +852,19 @@ export default function MarinaDockingSimulator() {
           setResult("COLLISION");
         }
 
+        const berthTolerance =
+          selectedBoat === "twinEngineCatamaran" ? 66 : 52;
+
         const secured =
-          liveBowDistance < 52 &&
-          liveSternDistance < 52 &&
+          liveBowDistance < berthTolerance &&
+          liveSternDistance < berthTolerance &&
           Math.abs(boat.speed) < 0.85 &&
-          angleError < 22;
+          angleError < 24;
 
         const tooFastInBerth =
-          liveBowDistance < 36 &&
-          liveSternDistance < 36 &&
-          Math.abs(boat.speed) >= 0.85;
+          liveBowDistance < 38 &&
+          liveSternDistance < 38 &&
+          Math.abs(boat.speed) >= 0.9;
 
         if (secured) {
           resultRef.current = "SUCCESS";
@@ -648,6 +905,9 @@ export default function MarinaDockingSimulator() {
     scenario,
     targetGeometry,
     activeTarget.heading,
+    activeBoat,
+    selectedBoat,
+    showObstacles,
   ]);
 
   return (
@@ -669,13 +929,12 @@ export default function MarinaDockingSimulator() {
           </h1>
 
           <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-300">
-            Baş-kıç hizası, gövde çarpışması, rüzgar drift’i, dümen etkisi,
-            bow thruster dönüş mantığı ve canlı manevra tavsiyeleri.
+            Marina, senaryo ve tekne tipi seçimiyle gerçekçi iskele manevra eğitimi.
           </p>
         </div>
       </section>
 
-      <section className="mx-auto grid max-w-7xl gap-6 px-6 py-10 lg:grid-cols-[320px_1fr]">
+      <section className="mx-auto grid max-w-7xl gap-6 px-6 py-10 lg:grid-cols-[340px_1fr]">
         <aside className="rounded-[32px] border border-cyan-400/15 bg-white/5 p-6 backdrop-blur-xl">
           <h2 className="text-2xl font-black text-cyan-300">
             Bridge Controls
@@ -683,7 +942,51 @@ export default function MarinaDockingSimulator() {
 
           <div className="mt-6 rounded-3xl border border-white/10 bg-white/5 p-5">
             <label className="text-xs font-black uppercase tracking-[0.22em] text-slate-300">
-              İskele Sahnesi
+              Marina / Sahne
+            </label>
+
+            <select
+              value={selectedMarina}
+              onChange={(e) => setSelectedMarina(e.target.value as MarinaKey)}
+              className="mt-3 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm font-bold text-white outline-none"
+            >
+              {Object.entries(MARINAS).map(([key, marina]) => (
+                <option key={key} value={key}>
+                  {marina.label}
+                </option>
+              ))}
+            </select>
+
+            <p className="mt-3 text-xs leading-5 text-slate-400">
+              {activeMarina.description}
+            </p>
+          </div>
+
+          <div className="mt-6 rounded-3xl border border-white/10 bg-white/5 p-5">
+            <label className="text-xs font-black uppercase tracking-[0.22em] text-slate-300">
+              Tekne Tipi
+            </label>
+
+            <select
+              value={selectedBoat}
+              onChange={(e) => setSelectedBoat(e.target.value as BoatKey)}
+              className="mt-3 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm font-bold text-white outline-none"
+            >
+              {Object.entries(BOATS).map(([key, boat]) => (
+                <option key={key} value={key}>
+                  {boat.label}
+                </option>
+              ))}
+            </select>
+
+            <p className="mt-3 text-xs leading-5 text-slate-400">
+              {activeBoat.description}
+            </p>
+          </div>
+
+          <div className="mt-6 rounded-3xl border border-white/10 bg-white/5 p-5">
+            <label className="text-xs font-black uppercase tracking-[0.22em] text-slate-300">
+              İskele Senaryosu
             </label>
 
             <select
@@ -846,8 +1149,8 @@ export default function MarinaDockingSimulator() {
               style={{ transform: `scale(${cameraScale})` }}
             >
               <img
-                src="/images/simulator/marina-bg.jpg"
-                alt="İskele sahnesi"
+                src={activeMarina.background}
+                alt={activeMarina.label}
                 className="absolute inset-0 h-full w-full object-cover"
               />
 
@@ -909,7 +1212,13 @@ export default function MarinaDockingSimulator() {
                   transform: `translate(-50%, -50%) rotate(${activeTarget.heading}deg)`,
                 }}
               >
-                <div className="h-[108px] w-[74px] rounded-[22px] border-2 border-emerald-300/80 bg-emerald-300/10 shadow-[0_0_36px_rgba(110,231,183,0.35)]" />
+                <div
+                  className="rounded-[22px] border-2 border-emerald-300/80 bg-emerald-300/10 shadow-[0_0_36px_rgba(110,231,183,0.35)]"
+                  style={{
+                    height: activeBoat.length + 18,
+                    width: activeBoat.width + 42,
+                  }}
+                />
                 <div className="absolute left-1/2 top-[-18px] h-3 w-3 -translate-x-1/2 rounded-full bg-emerald-200 shadow-[0_0_18px_rgba(110,231,183,0.9)]" />
                 <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-emerald-300/30 bg-slate-950/70 px-3 py-1 text-xs font-black text-emerald-200">
                   HEDEF İSKELE
@@ -965,9 +1274,15 @@ export default function MarinaDockingSimulator() {
                 ) : null}
 
                 <img
-                  src="/images/simulator/yacht-top.png"
-                  alt="Yacht"
-                  className="relative z-10 w-28 select-none drop-shadow-[0_0_35px_rgba(255,255,255,0.65)]"
+                  src={activeBoat.image}
+                  alt={activeBoat.label}
+                  className="relative z-10 select-none object-contain drop-shadow-[0_0_35px_rgba(255,255,255,0.65)]"
+                  style={{
+                    width:
+                      selectedBoat === "twinEngineCatamaran"
+                        ? activeBoat.length + 80
+                        : activeBoat.length + 45,
+                  }}
                   draggable={false}
                 />
               </div>
@@ -990,7 +1305,7 @@ export default function MarinaDockingSimulator() {
                   AIS Overlay
                 </p>
                 <div className="mt-3 space-y-2 text-slate-300">
-                  <AISRow label="MMSI" value="YYE-TRAIN-01" />
+                  <AISRow label="Vessel" value={activeBoat.label} />
                   <AISRow
                     label="COG"
                     value={`${Math.round(normalizeHeading(heading))}°`}
