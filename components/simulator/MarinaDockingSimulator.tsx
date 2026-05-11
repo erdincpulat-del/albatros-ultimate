@@ -390,6 +390,8 @@ export default function MarinaDockingSimulator() {
   const [result, setResult] = useState<ResultState>("RUNNING");
   const [attempts, setAttempts] = useState(1);
   const [wakeTrail, setWakeTrail] = useState<WakePoint[]>([]);
+  const [collisionFlash, setCollisionFlash] = useState(false);
+  const [perfectDocking, setPerfectDocking] = useState(false);
 
   const [scenario, setScenario] = useState<ScenarioKey>("training");
   const [nightMode, setNightMode] = useState(false);
@@ -611,6 +613,8 @@ export default function MarinaDockingSimulator() {
     setResult("RUNNING");
     setWakeTrail([]);
     setMooringLines(false);
+    setCollisionFlash(false);
+    setPerfectDocking(false);
 
     if (incrementAttempt) {
       setAttempts((value) => value + 1);
@@ -850,6 +854,8 @@ export default function MarinaDockingSimulator() {
           boat.speed = 0;
 
           setResult("COLLISION");
+          setCollisionFlash(true);
+          setTimeout(() => setCollisionFlash(false), 900);
         }
 
         const berthTolerance =
@@ -874,6 +880,7 @@ export default function MarinaDockingSimulator() {
           boat.speed = 0;
           setResult("SUCCESS");
           setMooringLines(true);
+          setPerfectDocking(true);
         }
 
         if (tooFastInBerth) {
@@ -1194,7 +1201,7 @@ export default function MarinaDockingSimulator() {
                   }}
                 >
                   <div
-                    className="h-20 w-8 rounded-full bg-cyan-100/20 blur-md"
+                    className="h-28 w-10 rounded-full bg-cyan-100/25 blur-xl"
                     style={{ opacity: point.intensity }}
                   />
                   <div
@@ -1355,7 +1362,18 @@ export default function MarinaDockingSimulator() {
               </div>
             ) : null}
 
-            {result !== "RUNNING" ? (
+            
+            {collisionFlash ? (
+              <div className="pointer-events-none absolute inset-0 z-[38] bg-red-500/20 animate-pulse" />
+            ) : null}
+
+            {perfectDocking && result === "SUCCESS" ? (
+              <div className="absolute left-1/2 top-8 z-[39] -translate-x-1/2 rounded-full border border-emerald-300/40 bg-emerald-400/20 px-6 py-3 text-sm font-black tracking-[0.2em] text-emerald-100 shadow-[0_0_40px_rgba(16,185,129,0.45)] backdrop-blur">
+                PERFECT DOCKING
+              </div>
+            ) : null}
+
+{result !== "RUNNING" ? (
               <div className="absolute inset-0 z-40 flex items-center justify-center bg-slate-950/45 backdrop-blur-sm">
                 <div
                   className={`w-[min(92%,520px)] rounded-[32px] border p-8 text-center shadow-2xl ${
@@ -1370,7 +1388,7 @@ export default function MarinaDockingSimulator() {
 
                   <h3 className="mt-4 text-4xl font-black text-white">
                     {result === "SUCCESS"
-                      ? "İskeleye Güvenli Yanaşıldı"
+                      ? "Perfect Docking Achieved"
                       : result === "COLLISION"
                         ? "Collision"
                         : "Failed Approach"}

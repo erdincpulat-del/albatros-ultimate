@@ -70,7 +70,7 @@ export default function SiteHeader() {
         href: "/charter",
         items: [
           { label: tr ? "Charter Ana Sayfa" : "Charter Home", href: "/charter" },
-          { label: tr ? "Rezervasyon" : "Reservation", href: "/reserve/charter" },
+          
         ],
       },
       {
